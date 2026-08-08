@@ -222,14 +222,13 @@ async def main():
         owner = os.getenv("BOT_OWNER", "forrbidhu")
         
         print(f"Opening target thread: {target_url}")
-        # Replace your current page.goto line with this:
-await page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+                await page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
 
-        if not is_railway:
-            input("\nOnce logged in and thread is visible, press ENTER to activate command bot...")
+                if not is_railway:
+                    input("\nOnce logged in and thread is visible, press ENTER to activate command bot...")
 
-        bot = InstagramCommandBot(page, owner_username=owner, prefix="^")
-        await bot.start_listener()
+                bot = InstagramCommandBot(page, owner_username=owner, prefix="^")
+                await bot.start_listener()
 
 if __name__ == "__main__":
     asyncio.run(main())
