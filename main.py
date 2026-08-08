@@ -222,7 +222,8 @@ async def main():
         owner = os.getenv("BOT_OWNER", "forrbidhu")
         
         print(f"Opening target thread: {target_url}")
-        await page.goto(target_url)
+        # Replace your current page.goto line with this:
+await page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
 
         if not is_railway:
             input("\nOnce logged in and thread is visible, press ENTER to activate command bot...")
