@@ -204,7 +204,7 @@ class InstagramCommandBot:
         except Exception as e:
             print(f"[!] Error in spam loop execution: {e}")
 
-async def main():
+    async def main():
     user_data_dir = os.path.join(os.path.expanduser("~"), "playwright_instagram_profile")
     is_railway = os.getenv("RAILWAY_ENVIRONMENT") is not None
 
