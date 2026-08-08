@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Command to run your bot script (use bot.py based on your repo)
-CMD ["python", "multi.py"]
+CMD ["python", "bot.py"]
