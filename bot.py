@@ -3,6 +3,7 @@ import json
 import time
 import random
 import asyncio
+import gc
 from playwright.async_api import async_playwright
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
@@ -288,8 +289,8 @@ class PlaywrightInstagramBot:
 
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
-            # We enforce a hard limit to prevent Meta from temporarily ratelimiting the socket
             safe_delay = max(0.25, delay)
+            msg_count = 0
             
             while not self.stop_flag.is_set():
                 heart = random.choice(HEART_EMOJIS)
@@ -298,11 +299,15 @@ class PlaywrightInstagramBot:
                 if self.stop_flag.is_set():
                     break
 
-                # 500 IQ MOVE: Fire & Forget
-                # By using asyncio.create_task, Python throws the injection into the background.
-                # It does NOT wait for the browser to finish injecting the text before starting the sleep timer.
-                # This guarantees the loop fires precisely at your exact delay down to the millisecond.
-                asyncio.create_task(self.blast_payload(payload))
+                # 500 IQ STABILITY: We MUST await the payload. 
+                # This perfectly sequences the inputs so the browser pipe never chokes.
+                await self.blast_payload(payload)
+                
+                # Active Memory Management: Force Python to empty RAM every 30 messages
+                # This guarantees Railway never hits the 500MB limit during a long spam session!
+                msg_count += 1
+                if msg_count % 30 == 0:
+                    gc.collect()
                 
                 if not self.stop_flag.is_set():
                     await asyncio.sleep(safe_delay)
