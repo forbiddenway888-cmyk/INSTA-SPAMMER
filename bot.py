@@ -16,7 +16,7 @@ class PlaywrightInstagramBot:
         self.target_thread_id = target_thread_id
         self.prefix = prefix
         self.is_running = True
-        self.processed_message_texts = set()
+        self.processed_message_hashes = set()
         self.active_spam_task = None
         self.stop_flag = asyncio.Event()
         self.browser = None
@@ -104,22 +104,19 @@ class PlaywrightInstagramBot:
     async def sync_initial_messages(self):
         try:
             print("[+] Syncing existing chat messages...", flush=True)
-            elements = []
-            
-            # Try multiple fallback selectors in order of preference
-            for selector in ['div[role="row"]', 'div[role="listitem"]', 'div[dir="auto"]']:
+            for selector in ['div[role="row"]', 'div[role="listitem"]']:
                 loc = self.page.locator(selector)
                 count = await loc.count()
                 if count > 0:
-                    elements = await loc.all_inner_texts()
+                    for i in range(count):
+                        el = loc.nth(i)
+                        txt = await el.inner_text()
+                        if txt:
+                            # Store a unique hash combining message position and content
+                            msg_hash = hash(f"{i}_{txt.strip()}")
+                            self.processed_message_hashes.add(msg_hash)
+                    print(f"[+] Synced {count} existing chat elements. Listening active! ⚡", flush=True)
                     break
-
-            for m in elements[-10:]:
-                cleaned = m.strip()
-                if cleaned:
-                    self.processed_message_texts.add(cleaned)
-
-            print(f"[+] Synced {len(elements[-10:])} initial chat items. Listening active! ⚡", flush=True)
         except Exception as e:
             print(f"[!] Warning during initial sync: {e}", flush=True)
 
@@ -137,25 +134,28 @@ class PlaywrightInstagramBot:
         print("[+] Hyper-speed polling loop active! Listening for commands...", flush=True)
         while self.is_running:
             try:
-                # Locate message rows across DOM structures
                 for selector in ['div[role="row"]', 'div[role="listitem"]']:
                     loc = self.page.locator(selector)
                     count = await loc.count()
                     if count > 0:
-                        # Inspect the last 2 messages to ensure fast responses
-                        for i in range(max(0, count - 2), count):
+                        # Inspect the last 5 messages in the thread
+                        for i in range(max(0, count - 5), count):
                             el = loc.nth(i)
                             full_text = await el.inner_text()
-                            
                             if full_text:
-                                # Split by line to isolate the command from usernames/timestamps
-                                lines = [line.strip() for line in full_text.splitlines() if line.strip()]
-                                for line in lines:
-                                    if line.startswith(self.prefix) and line not in self.processed_message_texts:
-                                        self.processed_message_texts.add(line)
-                                        print(f"[+] Instant Command Caught: {line}", flush=True)
-                                        asyncio.create_task(self.process_command(line))
-                                        break
+                                cleaned = full_text.strip()
+                                msg_hash = hash(f"{i}_{cleaned}")
+                                
+                                # Check if this specific message instance has been processed
+                                if msg_hash not in self.processed_message_hashes:
+                                    self.processed_message_hashes.add(msg_hash)
+                                    
+                                    lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
+                                    for line in lines:
+                                        if line.startswith(self.prefix):
+                                            print(f"[+] Instant Command Caught: {line}", flush=True)
+                                            asyncio.create_task(self.process_command(line))
+                                            break
                         break
             except Exception:
                 pass
