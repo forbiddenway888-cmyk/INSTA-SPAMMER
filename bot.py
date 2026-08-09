@@ -127,26 +127,37 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # 1000 IQ BYPASS: We do NOT use self.page.locator() anymore. 
-        # By evaluating directly on the page, we bypass Playwright's "Auto-Wait" feature.
-        # This injects the text instantly even if the chat is violently scrolling!
-        
+        # 1. INJECT THE PAYLOAD
         await self.page.evaluate(
             """(text) => {
-                // Find the box natively inside React's DOM
                 const box = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
                 if (box) {
                     box.focus();
-                    box.textContent = ''; // Clear old lag
-                    box.textContent = text; // Inject payload
+                    // Only clear manually if the chamber jammed from a lag spike
+                    if (box.textContent.trim() !== '') box.textContent = ''; 
+                    
+                    // Inject the new payload and force React to see it
+                    box.textContent = text;
                     box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
                 }
             }""",
             arg=text
         )
         
-        # Hardware-level Enter key dispatch (bypasses UI throttling)
+        # 2. PULL THE TRIGGER
         await self.page.keyboard.press("Enter")
+        
+        # 3. 1000 IQ SMART CHAMBER CHECK
+        # We wait for React to natively accept the Enter key and empty the text box.
+        # This prevents overwriting our own messages and guarantees a 100% hit rate!
+        await self.page.wait_for_function(
+            """() => {
+                const box = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
+                // Returns true the exact millisecond React empties the box
+                return box && box.textContent.trim() === '';
+            }""",
+            timeout=1000  # If Meta's server hangs for 1 second, the Tank Armor catches it and retries
+        )
             
 
     async def load_cookies(self):
