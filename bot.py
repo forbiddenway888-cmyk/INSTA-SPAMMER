@@ -57,6 +57,14 @@ class PlaywrightInstagramBot:
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
         
+        # 500 IQ MOVE: Permanently lie to Instagram's React engine.
+        # This executes on every page before Instagram's JS even loads, forcing the tab to act "Visible".
+        await self.context.add_init_script("""
+            Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
+            Object.defineProperty(document, 'hidden', { get: () => false });
+            Object.defineProperty(document, 'hasFocus', { get: () => true });
+        """)
+        
         await self.load_cookies()
         
         self.page = await self.context.new_page()
@@ -180,7 +188,7 @@ class PlaywrightInstagramBot:
             try:
                 current_time = time.time()
                 
-               # 500 IQ GHOST HEARTBEAT: Fire every 2.5 minutes (150 seconds)
+                # 500 IQ GHOST HEARTBEAT: Fire every 2.5 minutes (150 seconds)
                 if current_time - last_heartbeat_time > 150:
                     is_spamming = hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done()
                     
@@ -219,10 +227,16 @@ class PlaywrightInstagramBot:
                             asyncio.create_task(self.process_command(line))
                             break
                             
-            except Exception:
-                pass
+            except Exception as e:
+                # ==========================================
+                # THIS IS STEP 2: NO MORE SILENT FAILS
+                # ==========================================
+                print(f"[!] Polling error (Silent Crash Prevented): {e}", flush=True)
+                await asyncio.sleep(2) # Back off slightly if an error occurs to prevent log spam
             
-            await asyncio.sleep(0.3)
+            # Slightly increase the poll delay to 0.8s to give the Docker CPU room to breathe 
+            # and stop Memory Leaks from evaluating JS too fast
+            await asyncio.sleep(0.8)
 
     async def process_command(self, full_text: str):
         parts = full_text.split(" ")
