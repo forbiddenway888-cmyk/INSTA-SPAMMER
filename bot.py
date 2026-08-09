@@ -14,27 +14,29 @@ def generate_formatted_block(base_text: str, selected_heart: str, line_count: in
 def get_free_proxy():
     while True:
         try:
-            print("[+] Scraping fresh public proxies...", flush=True)
-            url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=yes"
+            print("[+] Scraping fresh Elite public proxies...", flush=True)
+            # Use ProxyScrape v4 API with elite anonymity to prevent IP leaks
+            url = "https://api.proxyscrape.com/v4/free-proxy-list/get?protocol=http&timeout=5000&country=all&ssl=yes&anonymity=elite&limit=50"
             response = requests.get(url, timeout=5)
             
             if response.status_code == 200:
-                proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
+                data = response.json()
+                proxies = [item.get("proxy") for item in data.get("proxies", []) if item.get("proxy")]
                 random.shuffle(proxies)
                 
-                print(f"[+] Testing batch of {min(len(proxies), 30)} proxies...", flush=True)
-                for p in proxies[:30]:
+                print(f"[+] Testing batch of {min(len(proxies), 25)} proxies against Instagram Mobile API...", flush=True)
+                for p in proxies[:25]:
                     test_proxy = {"http": f"http://{p}", "https": f"http://{p}"}
                     try:
-                        # Test if the proxy can successfully reach Instagram
-                        r = requests.get("https://www.instagram.com", proxies=test_proxy, timeout=3)
-                        if r.status_code == 200:
-                            print(f"[+] Verified working proxy locked: {p}", flush=True)
+                        # Test directly against Instagram's mobile API endpoint
+                        r = requests.get("https://i.instagram.com/api/v1/si/fetch_headers/", proxies=test_proxy, timeout=3)
+                        if r.status_code < 400:
+                            print(f"[+] Verified working mobile-compatible proxy locked: {p}", flush=True)
                             return f"http://{p}"
                     except:
                         continue
                         
-            print("[!] No working proxies in this batch. Retrying scraper in 3 seconds...", flush=True)
+            print("[!] No working mobile proxies in this batch. Retrying scraper in 3 seconds...", flush=True)
             time.sleep(3)
         except Exception as e:
             print(f"[!] Proxy scraper error: {e}. Retrying...", flush=True)
