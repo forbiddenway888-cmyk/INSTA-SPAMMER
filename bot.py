@@ -51,14 +51,14 @@ def main():
                     if msg_text.startswith("^"):
                         print(f"[+] Command received: {msg_text}")
                         
-                        if msg_text == "^ping":
-    start_t = time.time()
-    cl.account_info()  # Lightweight API network ping
-    end_t = time.time()
-    
-    latency_ms = round((end_t - start_t) * 1000, 2)
-    cl.direct_send(f"Pong! 🏓 Live API Latency: {latency_ms}ms | Blazing fast ⚡", thread_ids=[target_thread_id])
-    print(f"[+] Responded to ^ping in {latency_ms}ms!")
+                            if msg_text == "^ping":
+        start_t = time.time()
+        cl.account_info()  # Lightweight API network ping
+        end_t = time.time()
+        
+        latency_ms = round((end_t - start_t) * 1000, 2)
+        cl.direct_send(f"Pong! 🏓 Live API Latency: {latency_ms}ms | Blazing fast ⚡", thread_ids=[target_thread_id])
+        print(f"[+] Responded to ^ping in {latency_ms}ms!")
             
             time.sleep(3) # Safe polling interval to avoid rate limits
             
