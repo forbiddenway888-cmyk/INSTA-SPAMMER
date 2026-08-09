@@ -11,6 +11,22 @@ def generate_formatted_block(base_text: str, selected_heart: str, line_count: in
     lines = [f"{base_text} <{selected_heart}>" for _ in range(line_count)]
     return "\n\n".join(lines)
 
+def get_free_proxy():
+    try:
+        print("[+] Scraping fresh public free proxies...", flush=True)
+        url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=3000&country=all&ssl=yes"
+        response = requests.get(url, timeout=3)
+        
+        if response.status_code == 200:
+            proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
+            if proxies:
+                chosen_proxy = random.choice(proxies[:15])
+                print(f"[+] Successfully loaded proxy: {chosen_proxy}", flush=True)
+                return f"http://{chosen_proxy}"
+    except Exception as e:
+        print(f"[!] Proxy scraper timeout/error, bypassing proxy: {e}", flush=True)
+    return None
+
 class AsyncInstagramCommandBot:
     def __init__(self, client: Client, target_thread_id: str, prefix: str = "^"):
         self.cl = client
@@ -19,22 +35,21 @@ class AsyncInstagramCommandBot:
         self.is_running = True
         self.processed_message_ids = set()
         self.active_spam_task = None
-        self.stop_flag = asyncio.Event()  # Instant breaker flag
+        self.stop_flag = asyncio.Event()
 
     async def start_listener(self):
-        print(f"[+] Initializing Hyper-Speed Async API Listener...")
+        print("[+] Initializing Hyper-Speed Async API Listener...", flush=True)
 
         try:
             initial_thread = await asyncio.to_thread(self.cl.direct_thread, self.target_thread_id)
             for m in initial_thread.messages[:5]:
                 self.processed_message_ids.add(m.id)
-            print("[+] Synced chat history. Hyper-speed polling active! ⚡")
+            print("[+] Synced chat history. Hyper-speed polling active! ⚡", flush=True)
         except Exception as e:
-            print(f"[!] Warning during initial sync: {e}")
+            print(f"[!] Warning during initial sync: {e}", flush=True)
 
         while self.is_running:
             try:
-                # Fetch latest messages with minimal overhead
                 thread = await asyncio.to_thread(self.cl.direct_thread, self.target_thread_id)
                 messages = thread.messages
                 
@@ -47,14 +62,13 @@ class AsyncInstagramCommandBot:
                         self.processed_message_ids.add(msg_id)
                         
                         if msg_text.startswith(self.prefix):
-                            print(f"[+] Instant Command Caught: {msg_text}")
+                            print(f"[+] Instant Command Caught: {msg_text}", flush=True)
                             asyncio.create_task(self.process_command(msg_text))
                 
-                # Pushed to 0.25s for maximum snap speed
                 await asyncio.sleep(0.25)
                 
             except Exception as e:
-                print(f"[!] Error in hyper-speed loop: {e}")
+                print(f"[!] Error in hyper-speed loop: {e}", flush=True)
                 await asyncio.sleep(1)
                 
     async def process_command(self, full_text: str):
@@ -79,7 +93,7 @@ class AsyncInstagramCommandBot:
                 asyncio.create_task(asyncio.to_thread(self.cl.direct_answer, self.target_thread_id, "Usage: ^spam <text> [delay]"))
                 return
             
-            delay = 0.4  # Safe baseline delay to prevent 403 action blocks
+            delay = 0.4
             spam_text = " ".join(args)
             
             if len(args) > 1:
@@ -119,7 +133,6 @@ class AsyncInstagramCommandBot:
                     break
 
                 try:
-                    # direct_answer is the native instagrapi method for existing thread IDs
                     await asyncio.to_thread(
                         self.cl.direct_answer,
                         self.target_thread_id,
@@ -139,52 +152,33 @@ class AsyncInstagramCommandBot:
                     await asyncio.sleep(safe_delay)
                     
         except asyncio.CancelledError:
-            print("[!] Spam loop cancelled.")
+            print("[!] Spam loop cancelled.", flush=True)
 
-def get_free_proxy():
-    try:
-        print("[+] Scraping fresh public free proxies...")
-        # Fetch fast live HTTP proxies from ProxyScrape public API
-        url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=yes"
-        response = requests.get(url, timeout=5)
-        
-        if response.status_code == 200:
-            proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
-            if proxies:
-                # Pick randomly from the top 15 fastest responding proxies
-                chosen_proxy = random.choice(proxies[:15])
-                print(f"[+] Successfully loaded proxy: {chosen_proxy}")
-                return f"http://{chosen_proxy}"
-    except Exception as e:
-        print(f"[!] Proxy scraper error: {e}")
-    return None
-            
 async def main():
-    print("[+] Starting main initialization...")
+    print("[+] Starting main initialization...", flush=True)
     cl = Client()
     
-    print("[+] Attempting to fetch proxy...")
     proxy = get_free_proxy()
     if proxy:
-        print(f"[+] Applying proxy: {proxy}")
         cl.set_proxy(proxy)
     else:
-        print("[!] No proxy loaded, running direct...")
+        print("[+] Running without proxy (direct connection)...", flush=True)
         
     cl.delay_range = [2, 4]
     
     session_file = "session.json"
-    print(f"[+] Checking for {session_file}...")
+    print(f"[+] Checking for {session_file}...", flush=True)
+    
     if os.path.exists(session_file):
-        print("[+] Loading saved session tokens...")
+        print("[+] Loading saved session tokens...", flush=True)
         cl.load_settings(session_file)
-        print("[+] Session loaded successfully!")
+        print("[+] Session loaded successfully!", flush=True)
     else:
-        print("[!] Error: session.json not found!")
+        print("[!] Error: session.json not found!", flush=True)
         return
 
     target_thread_id = "340282366841710301281155341573245163458"
-    print("[+] Starting bot listener...")
+    print("[+] Starting bot listener...", flush=True)
     
     bot = AsyncInstagramCommandBot(cl, target_thread_id, prefix="^")
     await bot.start_listener()
