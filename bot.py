@@ -133,39 +133,14 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # TOP-TIER ATOMIC ENGINE: Injects text and fires Enter natively in one single V8 call
-        await self.page.evaluate(
-            """(text) => {
-                const box = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
-                if (box) {
-                    box.focus();
-                    
-                    # Clear chamber only if jammed from a lag spike
-                    if (box.textContent.trim() !== '') {
-                        box.textContent = '';
-                    }
-                    
-                    # Inject payload and force React recognition
-                    box.textContent = text;
-                    box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-                    
-                    # Native DOM Keyboard Events for instant submission (Zero CDP round-trip lag)
-                    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                    box.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                    box.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                }
-            }""",
-            arg=text
-        )
+        # INDESTRUCTIBLE 1-LINE EXECUTION: Bypasses all invisible copy-paste characters and indentation syntax errors.
+        js_code = "(t) => { let b = document.querySelector(\"div[contenteditable='true'][role='textbox'], p.xdj266r\"); if(b) { b.focus(); if(b.textContent.trim() !== '') b.textContent = ''; b.textContent = t; b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keypress', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true})); } }"
         
-        # ULTRA-LEAN CHAMBER CHECK: Hyper-responsive verification with a tight 400ms ceiling
-        await self.page.wait_for_function(
-            """() => {
-                const box = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
-                return !box || box.textContent.trim() === '';
-            }""",
-            timeout=400
-        )
+        await self.page.evaluate(js_code, text)
+        
+        # 1-LINE CHAMBER CHECK
+        check_code = "() => { let b = document.querySelector(\"div[contenteditable='true'][role='textbox'], p.xdj266r\"); return !b || b.textContent.trim() === ''; }"
+        await self.page.wait_for_function(check_code, timeout=400)
             
 
     async def load_cookies(self):
