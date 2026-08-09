@@ -132,7 +132,7 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # GOD-TIER OPTIMIZATION: Stripped redundant keypress events, keeping only raw setter + clean Enter dispatch
+        # Kept for single commands like ^ping
         js_code = """async (t) => { 
             let b = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r"); 
             if(!b) return; 
@@ -141,17 +141,7 @@ class PlaywrightInstagramBot:
             b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); 
             b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
             b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true})); 
-            return new Promise(r => { 
-                let c = setInterval(() => { 
-                    if(!document.body.contains(b) || b.textContent.trim() === '') { 
-                        clearInterval(c); 
-                        r(); 
-                    } 
-                }, 2); 
-                setTimeout(() => { clearInterval(c); r(); }, 150); 
-            }); 
         }"""
-        
         await self.page.evaluate(js_code, text)
             
 
@@ -339,10 +329,14 @@ class PlaywrightInstagramBot:
             self.active_spam_task = asyncio.create_task(self.execute_spam_loop(spam_text, delay))
 
         elif cmd == f"{self.prefix}unspam":
-            # Wipe the memory bank
             ACTIVE_SPAM_STATE = None  
             
-            # Trigger the stop flag and kill the active task
+            # Stop the native JS loop instantly
+            try:
+                await self.page.evaluate("window.__insta_spam_active = false;")
+            except Exception:
+                pass
+
             self.stop_flag.set()
             if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
                 self.active_spam_task.cancel()
@@ -353,37 +347,49 @@ class PlaywrightInstagramBot:
 
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
-            # Enforce absolute minimum floor for packet stability
-            safe_delay = max(0.005, delay)
-            msg_count = 0
+            print("[+] Launching God-Tier Native Browser-Side Loop... ⚡", flush=True)
             
-            while not self.stop_flag.is_set():
-                heart = random.choice(HEART_EMOJIS)
+            # GOD-TIER MOVE: Shift the entire loop INSIDE V8. Zero Python latency overhead!
+            native_loop_js = """async ([baseText, heartEmojis, safetyDelay]) => {
+                window.__insta_spam_active = true;
                 
-                # Generate the multi-line block payload dynamically
-                payload = generate_formatted_block(base_text, heart, line_count=40)
-                
-                if self.stop_flag.is_set():
-                    break
-
-                # Tank Armor: Keep blast non-blocking for the loop
-                try:
-                    await self.blast_payload(payload)
-                except Exception as e:
-                    print(f"[!] Minor DOM stutter (ignored, firing next): {e}", flush=True)
-                
-                # Optimized memory management (shifted to 50 for higher speed bursts)
-                msg_count += 1
-                if msg_count % 50 == 0:
-                    gc.collect()
-                    try:
-                        await self.page.evaluate("window.gc && window.gc();")
-                    except Exception:
-                        pass
-                
-                if not self.stop_flag.is_set():
-                    await asyncio.sleep(safe_delay)
+                while (window.__insta_spam_active) {
+                    let b = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
+                    if (!b) {
+                        await new Promise(r => setTimeout(r, 100));
+                        continue;
+                    }
                     
+                    // Build multi-line payload locally in JS for max speed
+                    let selectedHeart = heartEmojis[Math.floor(Math.random() * heartEmojis.length)];
+                    let lines = [];
+                    let currentLen = 0;
+                    
+                    for (let i = 0; i < 30; i++) {
+                        let line = `⚡ ${baseText} <${selectedHeart}> ⚡`;
+                        let addition = line.length + 2;
+                        if (currentLen + addition > 950) break;
+                        lines.push(line);
+                        currentLen += addition;
+                    }
+                    let payload = lines.join('\\n\\n');
+                    
+                    // Fire atomic injection
+                    b.focus();
+                    b.textContent = payload;
+                    b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: payload}));
+                    b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
+                    b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
+                    
+                    // Native async delay
+                    await new Promise(r => setTimeout(r, safetyDelay * 1000));
+                }
+            }"""
+
+            # Pass arguments cleanly into the browser context and run asynchronously
+            # We use evaluate_handle so it runs in the background without blocking Python's poll loop
+            self.active_js_task = await self.page.evaluate_handle(f"({native_loop_js})", [base_text, HEART_EMOJIS, max(0.01, delay)])
+
         except asyncio.CancelledError:
             print("[+] Spam loop gracefully cancelled.", flush=True)
         except Exception as e:
