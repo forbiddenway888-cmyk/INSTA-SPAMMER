@@ -127,36 +127,38 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # 1. INJECT THE PAYLOAD
+        # TOP-TIER ATOMIC ENGINE: Injects text and fires Enter natively in one single V8 call
         await self.page.evaluate(
             """(text) => {
                 const box = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
                 if (box) {
                     box.focus();
-                    // Only clear manually if the chamber jammed from a lag spike
-                    if (box.textContent.trim() !== '') box.textContent = ''; 
                     
-                    // Inject the new payload and force React to see it
+                    # Clear chamber only if jammed from a lag spike
+                    if (box.textContent.trim() !== '') {
+                        box.textContent = '';
+                    }
+                    
+                    # Inject payload and force React recognition
                     box.textContent = text;
                     box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+                    
+                    # Native DOM Keyboard Events for instant submission (Zero CDP round-trip lag)
+                    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                    box.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                    box.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                 }
             }""",
             arg=text
         )
         
-        # 2. PULL THE TRIGGER
-        await self.page.keyboard.press("Enter")
-        
-        # 3. 1000 IQ SMART CHAMBER CHECK
-        # We wait for React to natively accept the Enter key and empty the text box.
-        # This prevents overwriting our own messages and guarantees a 100% hit rate!
+        # ULTRA-LEAN CHAMBER CHECK: Hyper-responsive verification with a tight 400ms ceiling
         await self.page.wait_for_function(
             """() => {
                 const box = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
-                // Returns true the exact millisecond React empties the box
-                return box && box.textContent.trim() === '';
+                return !box || box.textContent.trim() === '';
             }""",
-            timeout=1000  # If Meta's server hangs for 1 second, the Tank Armor catches it and retries
+            timeout=400
         )
             
 
@@ -358,31 +360,28 @@ class PlaywrightInstagramBot:
 
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
-            # SUPER AI OVERRIDE: Drop the internal chokehold to 0.05s
+            # Enforce absolute minimum floor for packet stability
             safe_delay = max(0.05, delay)
             msg_count = 0
             
-            # ... (keep the rest of the loop exactly the same)
-            
             while not self.stop_flag.is_set():
                 heart = random.choice(HEART_EMOJIS)
-                payload = generate_max_payload(base_text, heart)
+                
+                # Generate the multi-line block payload dynamically
+                payload = generate_formatted_block(base_text, heart, line_count=40)
                 
                 if self.stop_flag.is_set():
                     break
 
-                # ==========================================
-                # 500 IQ TANK ARMOR: Try/Except the blast!
-                # If Instagram UI lags, it won't shatter the loop.
-                # ==========================================
+                # Tank Armor: Keep blast non-blocking for the loop
                 try:
                     await self.blast_payload(payload)
                 except Exception as e:
                     print(f"[!] Minor DOM stutter (ignored, firing next): {e}", flush=True)
                 
-                # Active Memory Management: Force Python to empty RAM
+                # Optimized memory management (shifted to 50 for higher speed bursts)
                 msg_count += 1
-                if msg_count % 30 == 0:
+                if msg_count % 50 == 0:
                     gc.collect()
                     try:
                         await self.page.evaluate("window.gc && window.gc();")
@@ -395,7 +394,6 @@ class PlaywrightInstagramBot:
         except asyncio.CancelledError:
             print("[+] Spam loop gracefully cancelled.", flush=True)
         except Exception as e:
-            # THIS exposes any fatal logic errors so it NEVER dies silently again
             print(f"\n[!] FATAL SPAM LOOP ERROR: {e}\n", flush=True)
             
 async def main():
