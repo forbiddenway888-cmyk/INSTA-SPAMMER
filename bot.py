@@ -41,16 +41,33 @@ class AsyncInstagramCommandBot:
         print("[+] Initializing Hyper-Speed Async API Listener...", flush=True)
 
         try:
-            initial_thread = await asyncio.to_thread(self.cl.direct_thread, self.target_thread_id)
+            # Wrap network calls with a 6s timeout so hanging proxies never freeze the bot
+            initial_thread = await asyncio.wait_for(
+                asyncio.to_thread(self.cl.direct_thread, self.target_thread_id),
+                timeout=6.0
+            )
             for m in initial_thread.messages[:5]:
                 self.processed_message_ids.add(m.id)
             print("[+] Synced chat history. Hyper-speed polling active! ⚡", flush=True)
+        except asyncio.TimeoutError:
+            print("[!] Proxy hanging! Dropping dead proxy and switching to direct connection...", flush=True)
+            self.cl.set_proxy(None)  # Remove dead proxy
+            try:
+                initial_thread = await asyncio.to_thread(self.cl.direct_thread, self.target_thread_id)
+                for m in initial_thread.messages[:5]:
+                    self.processed_message_ids.add(m.id)
+                print("[+] Synced chat history via direct connection!", flush=True)
+            except Exception as e:
+                print(f"[!] Direct sync error: {e}", flush=True)
         except Exception as e:
             print(f"[!] Warning during initial sync: {e}", flush=True)
 
         while self.is_running:
             try:
-                thread = await asyncio.to_thread(self.cl.direct_thread, self.target_thread_id)
+                thread = await asyncio.wait_for(
+                    asyncio.to_thread(self.cl.direct_thread, self.target_thread_id),
+                    timeout=5.0
+                )
                 messages = thread.messages
                 
                 if messages:
@@ -67,6 +84,9 @@ class AsyncInstagramCommandBot:
                 
                 await asyncio.sleep(0.25)
                 
+            except asyncio.TimeoutError:
+                # Skip silently if a poll cycle times out, preventing freezes
+                await asyncio.sleep(1)
             except Exception as e:
                 print(f"[!] Error in hyper-speed loop: {e}", flush=True)
                 await asyncio.sleep(1)
