@@ -21,12 +21,45 @@ def main():
         print("[!] Error: session.json not found!")
         return
 
-    threads = cl.direct_threads(amount=1)
-    if threads:
-        thread = threads[0]
-        print(f"[+] Connected successfully! Active thread ID: {thread.id}")
-    else:
-        print("[!] No direct threads found.")
+    target_thread_id = "340282366841710301281155341573245163458"
+    print(f"[+] Starting command listener loop for thread: {target_thread_id}")
+
+    processed_message_ids = set()
+
+    # Seed initial messages so it ignores historical chat logs on boot
+    try:
+        initial_thread = cl.direct_thread(target_thread_id)
+        for m in initial_thread.messages[:5]:
+            processed_message_ids.add(m.id)
+        print("[+] Synced chat history. Listening for new commands...")
+    except Exception as e:
+        print(f"[!] Warning during initial sync: {e}")
+
+    while True:
+        try:
+            thread = cl.direct_thread(target_thread_id)
+            messages = thread.messages
+            
+            if messages:
+                latest = messages[0]
+                msg_id = latest.id
+                msg_text = latest.text if latest.text else ""
+                
+                if msg_id not in processed_message_ids:
+                    processed_message_ids.add(msg_id)
+                    
+                    if msg_text.startswith("^"):
+                        print(f"[+] Command received: {msg_text}")
+                        
+                        if msg_text == "^ping":
+                            cl.direct_send("Pong! 🏓 API bot active with zero browser overhead ⚡", thread_ids=[target_thread_id])
+                            print("[+] Responded to ^ping!")
+            
+            time.sleep(3) # Safe polling interval to avoid rate limits
+            
+        except Exception as e:
+            print(f"[!] Error in listener loop: {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
     main()
