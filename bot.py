@@ -52,14 +52,19 @@ def main():
                         print(f"[+] Command received: {msg_text}")
                         
                         if msg_text == "^ping":
-                            cl.direct_send("Pong! 🏓 API bot active with zero browser overhead ⚡", thread_ids=[target_thread_id])
-                            print("[+] Responded to ^ping!")
+    start_t = time.time()
+    cl.account_info()  # Lightweight API network ping
+    end_t = time.time()
+    
+    latency_ms = round((end_t - start_t) * 1000, 2)
+    cl.direct_send(f"Pong! 🏓 Live API Latency: {latency_ms}ms | Blazing fast ⚡", thread_ids=[target_thread_id])
+    print(f"[+] Responded to ^ping in {latency_ms}ms!")
             
             time.sleep(3) # Safe polling interval to avoid rate limits
             
         except Exception as e:
             print(f"[!] Error in listener loop: {e}")
-            time.sleep(5)
+            time.sleep(0.1)
 
 if __name__ == "__main__":
     main()
