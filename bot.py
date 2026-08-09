@@ -132,18 +132,30 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # Blazing-fast direct injection with optimized React input tracking
-        js_code = """async (t) => { 
-            let b = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r"); 
-            if(!b) return false; 
-            b.focus(); 
-            b.textContent = t; 
-            b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); 
-            b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
-            b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true})); 
-            return true;
-        }"""
-        return await self.page.evaluate(js_code, text)
+        try:
+            box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
+            
+            # 1. Force React/Lexical to accept the text by using native browser commands
+            await box.evaluate(
+                """(element, payloadText) => {
+                    element.focus();
+                    // Select any leftover text and overwrite it instantly
+                    document.execCommand('selectAll', false, null);
+                    document.execCommand('insertText', false, payloadText);
+                }""",
+                arg=text
+            )
+            
+            # 2. Use Playwright's native CDP layer for the Enter key. 
+            # React CANNOT ignore this because it comes from the browser engine itself.
+            await self.page.keyboard.press("Enter")
+            
+            # 3. Absolute minimum threshold so Instagram's WebSocket actually processes it
+            await asyncio.sleep(0.05) 
+            return True
+        except Exception as e:
+            # Silently catch minor DOM detachments during rapid loops
+            return False
             
 
     async def load_cookies(self):
