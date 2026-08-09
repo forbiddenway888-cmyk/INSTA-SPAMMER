@@ -54,14 +54,26 @@ class PlaywrightInstagramBot:
         
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
         await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
-        await asyncio.sleep(6)
+        await asyncio.sleep(4)
         
-        # Check if Instagram redirected to login
-        current_url = self.page.url
-        print(f"[+] Current Page URL: {current_url}", flush=True)
-        if "login" in current_url or "accounts" in current_url:
-            print("[!] Warning: Instagram redirected to login/checkpoint. Session cookies may need to be refreshed.", flush=True)
-        
+        # 1. Automatically dismiss blocking Instagram popups ("Not Now", "Cancel")
+        for popup_text in ["Not Now", "Not now", "Cancel"]:
+            try:
+                btn = self.page.get_by_role("button", name=popup_text)
+                if await btn.is_visible(timeout=1500):
+                    await btn.click()
+                    print(f"[+] Dismissed popup: '{popup_text}'", flush=True)
+            except Exception:
+                pass
+
+        # 2. Anchor on the message box (proves the thread is loaded)
+        try:
+            print("[+] Waiting for chat input box anchor...", flush=True)
+            await self.page.wait_for_selector('div[contenteditable="true"]', timeout=30000)
+            print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
+        except Exception as e:
+            print(f"[!] Warning: Chat input anchor check timed out: {e}", flush=True)
+
         await self.sync_initial_messages()
         await self.poll_loop()
 
