@@ -2,6 +2,7 @@ import os
 import time
 import random
 import asyncio
+import requests
 from instagrapi import Client
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
@@ -139,11 +140,36 @@ class AsyncInstagramCommandBot:
                     
         except asyncio.CancelledError:
             print("[!] Spam loop cancelled.")
+
+def get_free_proxy():
+    try:
+        print("[+] Scraping fresh public free proxies...")
+        # Fetch fast live HTTP proxies from ProxyScrape public API
+        url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=yes"
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code == 200:
+            proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
+            if proxies:
+                # Pick randomly from the top 15 fastest responding proxies
+                chosen_proxy = random.choice(proxies[:15])
+                print(f"[+] Successfully loaded proxy: {chosen_proxy}")
+                return f"http://{chosen_proxy}"
+    except Exception as e:
+        print(f"[!] Proxy scraper error: {e}")
+    return None
             
 async def main():
-    print("[+] Initializing lightweight async Instagram client...")
+    print("[+] Initializing lightweight async Instagram client with auto-proxy scraper...")
     cl = Client()
-    cl.delay_range = [2, 4]  # Automatically adds a safe delay between requests
+    
+    # Auto-fetch and apply a fresh public free proxy
+    proxy = get_free_proxy()
+    if proxy:
+        cl.set_proxy(proxy)
+        
+    cl.delay_range = [2, 4]  # Safety delay layer
+    
     session_file = "session.json"
 
     if os.path.exists(session_file):
