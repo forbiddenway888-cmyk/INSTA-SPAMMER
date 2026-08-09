@@ -133,14 +133,10 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # INDESTRUCTIBLE 1-LINE EXECUTION: Bypasses all invisible copy-paste characters and indentation syntax errors.
-        js_code = "(t) => { let b = document.querySelector(\"div[contenteditable='true'][role='textbox'], p.xdj266r\"); if(b) { b.focus(); if(b.textContent.trim() !== '') b.textContent = ''; b.textContent = t; b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keypress', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true})); } }"
+        # GOD-TIER ATOMIC PROMISE: Injection + Enter + 5ms Chamber Check in ONE single V8 execution
+        js_code = "async (t) => { let b = document.querySelector(\"div[contenteditable='true'][role='textbox'], p.xdj266r\"); if(!b) return; b.focus(); if(b.textContent.trim() !== '') b.textContent = ''; b.textContent = t; b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keypress', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true})); return new Promise(r => { let c = setInterval(() => { if(!document.body.contains(b) || b.textContent.trim() === '') { clearInterval(c); r(); } }, 5); setTimeout(() => { clearInterval(c); r(); }, 350); }); }"
         
         await self.page.evaluate(js_code, text)
-        
-        # 1-LINE CHAMBER CHECK
-        check_code = "() => { let b = document.querySelector(\"div[contenteditable='true'][role='textbox'], p.xdj266r\"); return !b || b.textContent.trim() === ''; }"
-        await self.page.wait_for_function(check_code, timeout=400)
             
 
     async def load_cookies(self):
@@ -342,7 +338,7 @@ class PlaywrightInstagramBot:
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
             # Enforce absolute minimum floor for packet stability
-            safe_delay = max(0.05, delay)
+            safe_delay = max(0.01, delay)
             msg_count = 0
             
             while not self.stop_flag.is_set():
