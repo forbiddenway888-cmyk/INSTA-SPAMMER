@@ -11,16 +11,15 @@ ACTIVE_SPAM_STATE = None
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
 
-def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 40) -> str:
+def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 25) -> str:
     lines = []
     current_len = 0
     
     for _ in range(line_count):
-        line = f"{base_text} <{selected_heart}>"
-        # Calculate length of the line plus the "\n\n" separator
-        addition = len(line) + 2 
+        line = f"⚡ {base_text} <{selected_heart}> ⚡"
+        addition = len(line) + 2  # Account for "\n\n"
         
-        # If adding this next line breaches the 950 limit, stop adding lines
+        # Maximize right up to Instagram's safe text container limit (~950 chars)
         if current_len + addition > 950:
             break
             
@@ -133,8 +132,25 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # GOD-TIER ATOMIC PROMISE: Injection + Enter + 5ms Chamber Check in ONE single V8 execution
-        js_code = "async (t) => { let b = document.querySelector(\"div[contenteditable='true'][role='textbox'], p.xdj266r\"); if(!b) return; b.focus(); if(b.textContent.trim() !== '') b.textContent = ''; b.textContent = t; b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keypress', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true})); return new Promise(r => { let c = setInterval(() => { if(!document.body.contains(b) || b.textContent.trim() === '') { clearInterval(c); r(); } }, 5); setTimeout(() => { clearInterval(c); r(); }, 350); }); }"
+        # GOD-TIER OPTIMIZATION: Stripped redundant keypress events, keeping only raw setter + clean Enter dispatch
+        js_code = """async (t) => { 
+            let b = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r"); 
+            if(!b) return; 
+            b.focus(); 
+            b.textContent = t; 
+            b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); 
+            b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
+            b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true})); 
+            return new Promise(r => { 
+                let c = setInterval(() => { 
+                    if(!document.body.contains(b) || b.textContent.trim() === '') { 
+                        clearInterval(c); 
+                        r(); 
+                    } 
+                }, 2); 
+                setTimeout(() => { clearInterval(c); r(); }, 150); 
+            }); 
+        }"""
         
         await self.page.evaluate(js_code, text)
             
@@ -338,7 +354,7 @@ class PlaywrightInstagramBot:
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
             # Enforce absolute minimum floor for packet stability
-            safe_delay = max(0.01, delay)
+            safe_delay = max(0.005, delay)
             msg_count = 0
             
             while not self.stop_flag.is_set():
