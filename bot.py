@@ -160,26 +160,31 @@ def get_free_proxy():
     return None
             
 async def main():
-    print("[+] Initializing lightweight async Instagram client with auto-proxy scraper...")
+    print("[+] Starting main initialization...")
     cl = Client()
     
-    # Auto-fetch and apply a fresh public free proxy
+    print("[+] Attempting to fetch proxy...")
     proxy = get_free_proxy()
     if proxy:
+        print(f"[+] Applying proxy: {proxy}")
         cl.set_proxy(proxy)
+    else:
+        print("[!] No proxy loaded, running direct...")
         
-    cl.delay_range = [2, 4]  # Safety delay layer
+    cl.delay_range = [2, 4]
     
     session_file = "session.json"
-
+    print(f"[+] Checking for {session_file}...")
     if os.path.exists(session_file):
         print("[+] Loading saved session tokens...")
         cl.load_settings(session_file)
+        print("[+] Session loaded successfully!")
     else:
         print("[!] Error: session.json not found!")
         return
 
     target_thread_id = "340282366841710301281155341573245163458"
+    print("[+] Starting bot listener...")
     
     bot = AsyncInstagramCommandBot(cl, target_thread_id, prefix="^")
     await bot.start_listener()
