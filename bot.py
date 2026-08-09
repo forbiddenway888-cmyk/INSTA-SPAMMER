@@ -49,8 +49,8 @@ class PlaywrightInstagramBot:
         
         self.page = await self.context.new_page()
         
-        # Block images, stylesheets, and fonts to reduce resource and data usage to minimum
-        await self.page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "stylesheet", "font", "media"] else route.continue_())
+        # REMOVE "stylesheet" from the blocked list:
+        await self.page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
         
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
         await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
