@@ -268,6 +268,8 @@ class PlaywrightInstagramBot:
             await asyncio.sleep(0.8)
 
     async def process_command(self, full_text: str):
+        # 500 IQ FIX: Declare the global at the absolute top of the function!
+        global ACTIVE_SPAM_STATE
         parts = full_text.split(" ")
         cmd = parts[0].lower()
         args = parts[1:]
@@ -285,8 +287,7 @@ class PlaywrightInstagramBot:
                 print(f"[!] Ping error: {e}", flush=True)
 
         elif cmd == f"{self.prefix}spam":
-            # 500 IQ: Save this exact command string to global memory for auto-resuming
-            global ACTIVE_SPAM_STATE
+            # Just directly assign it now, Python already knows it's global!
             ACTIVE_SPAM_STATE = full_text  
             
             if not args:
@@ -316,11 +317,10 @@ class PlaywrightInstagramBot:
             self.active_spam_task = asyncio.create_task(self.execute_spam_loop(spam_text, delay))
 
         elif cmd == f"{self.prefix}unspam":
-            # 1. Wipe the memory bank so Phoenix doesn't auto-resume on restart
-            global ACTIVE_SPAM_STATE
+            # Wipe the memory bank
             ACTIVE_SPAM_STATE = None  
             
-            # 2. Trigger the stop flag and kill the active task
+            # Trigger the stop flag and kill the active task
             self.stop_flag.set()
             if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
                 self.active_spam_task.cancel()
