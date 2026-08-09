@@ -53,7 +53,13 @@ class PlaywrightInstagramBot:
         
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
         await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
-        await asyncio.sleep(5)
+        await asyncio.sleep(6)
+        
+        # Check if Instagram redirected to login
+        current_url = self.page.url
+        print(f"[+] Current Page URL: {current_url}", flush=True)
+        if "login" in current_url or "accounts" in current_url:
+            print("[!] Warning: Instagram redirected to login/checkpoint. Session cookies may need to be refreshed.", flush=True)
         
         await self.sync_initial_messages()
         await self.poll_loop()
