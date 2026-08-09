@@ -228,14 +228,18 @@ class PlaywrightInstagramBot:
                             break
                             
             except Exception as e:
-                # ==========================================
-                # THIS IS STEP 2: NO MORE SILENT FAILS
-                # ==========================================
-                print(f"[!] Polling error (Silent Crash Prevented): {e}", flush=True)
-                await asyncio.sleep(2) # Back off slightly if an error occurs to prevent log spam
+                error_msg = str(e).lower()
+                
+                # 500 IQ MOVE: Detect the exact moment the OS kills the browser
+                if "closed" in error_msg or "pipe" in error_msg or "target crashed" in error_msg:
+                    print("\n[!] FATAL OS RAM CRASH DETECTED! Browser assassinated.", flush=True)
+                    print("[*] Initiating Phoenix Protocol: Wiping dead engine... 🦅", flush=True)
+                    self.is_running = False
+                    break  # Shatter the dead loop so we can restart!
+                
+                print(f"[!] Polling error: {e}", flush=True)
+                await asyncio.sleep(2) 
             
-            # Slightly increase the poll delay to 0.8s to give the Docker CPU room to breathe 
-            # and stop Memory Leaks from evaluating JS too fast
             await asyncio.sleep(0.8)
 
     async def process_command(self, full_text: str):
@@ -307,9 +311,23 @@ class PlaywrightInstagramBot:
             print("[!] Spam loop cancelled.", flush=True)
             
 async def main():
-    target_thread_id = "340282366841710301281155341573245163458"
-    bot = PlaywrightInstagramBot(target_thread_id, prefix="^")
-    await bot.start()
+    print("🚀 INITIALIZING IMMORTAL BOT ENGINE...", flush=True)
+    while True:
+        try:
+            # Boot the bot
+            bot = PlaywrightInstagramBot() 
+            await bot.start()
+        except Exception as e:
+            print(f"[!] Engine failure caught in main: {e}", flush=True)
+        
+        # If the bot breaks out of start() because of our Phoenix Protocol,
+        # it hits this block, sleeps for 3 seconds to let the RAM completely flush,
+        # and loops back up to boot a fresh browser!
+        print("[*] RAM flushed. Rebooting fresh instance in 3 seconds...", flush=True)
+        await asyncio.sleep(3)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n[+] Script manually stopped by user.")
