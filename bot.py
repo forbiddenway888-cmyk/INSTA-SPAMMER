@@ -52,6 +52,7 @@ class PlaywrightInstagramBot:
                 # The 500 IQ Anti-Sleep Flags:
                 "--disable-background-timer-throttling",
                 "--disable-backgrounding-occluded-windows",
+                "--js-flags=--max-old-space-size=250",
                 "--disable-renderer-backgrounding"
             ]
         )
@@ -106,10 +107,11 @@ class PlaywrightInstagramBot:
         # ==========================================
         global ACTIVE_SPAM_STATE
         if ACTIVE_SPAM_STATE:
-            print(f"[*] Phoenix Memory Bank active! Auto-resuming: {ACTIVE_SPAM_STATE}", flush=True)
+            print(f"[*] Phoenix Memory Bank active! Letting Instagram settle in RAM...", flush=True)
+            await asyncio.sleep(4)  # CRITICAL BREATHING ROOM
+            print(f"[*] Auto-resuming: {ACTIVE_SPAM_STATE}", flush=True)
             asyncio.create_task(self.process_command(ACTIVE_SPAM_STATE))
             
-        
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
@@ -249,8 +251,14 @@ class PlaywrightInstagramBot:
                 if "closed" in error_msg or "pipe" in error_msg or "target crashed" in error_msg:
                     print("\n[!] FATAL OS RAM CRASH DETECTED! Browser assassinated.", flush=True)
                     print("[*] Initiating Phoenix Protocol: Wiping dead engine... 🦅", flush=True)
+                    
+                    # DOUBLE-TAP THE ZOMBIE: Explicitly cancel the active spam loop!
                     self.is_running = False
-                    break  # Shatter the dead loop so we can restart!
+                    self.stop_flag.set() 
+                    if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
+                        self.active_spam_task.cancel()
+                        
+                    break  # Shatter the dead loop so we can restart cleanly!
                 
                 print(f"[!] Polling error: {e}", flush=True)
                 await asyncio.sleep(2) 
