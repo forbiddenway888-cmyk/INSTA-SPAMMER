@@ -1,6 +1,13 @@
 import os
 import time
+import random
 from instagrapi import Client
+
+HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
+
+def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 40) -> str:
+    lines = [f"{base_text} <{selected_heart}>" for _ in range(line_count)]
+    return "\n\n".join(lines)
 
 def main():
     print("[+] Initializing lightweight Instagram client...")
@@ -14,7 +21,6 @@ def main():
         print("[!] Error: session.json not found!")
         return
 
-    # Verify connection by grabbing the latest thread
     threads = cl.direct_threads(amount=1)
     if threads:
         thread = threads[0]
