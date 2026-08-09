@@ -61,8 +61,10 @@ def main():
                             print(f"[+] Responded to ^ping in {latency_ms}ms!")
             
         except Exception as e:
-            print(f"[!] Error in listener loop: {e}")
-            time.sleep(0.1)
+                print(f"[!] Error in listener loop: {e}")
+                time.sleep(2)
+
+            time.sleep(1)  # Blazing fast yet safe polling interval
 
 if __name__ == "__main__":
     main()
