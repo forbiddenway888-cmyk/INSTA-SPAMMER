@@ -68,46 +68,44 @@ class AsyncInstagramCommandBot:
             
             latency_ms = round((end_t - start_t) * 1000, 2)
             await asyncio.to_thread(
-                self.cl.direct_send,
-                f"Pong! 🏓 Async API Latency: {latency_ms}ms | Blazing fast ⚡",
-                thread_ids=[self.target_thread_id]
+                self.cl.direct_answer,
+                self.target_thread_id,
+                f"Pong! 🏓 Latency: {latency_ms}ms | Bot active!"
             )
-            print(f"[+] Responded to ^ping in {latency_ms}ms!")
 
         elif cmd == f"{self.prefix}spam":
             if not args:
-                asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "Usage: ^spam <text> [delay]", thread_ids=[self.target_thread_id]))
+                asyncio.create_task(asyncio.to_thread(self.cl.direct_answer, self.target_thread_id, "Usage: ^spam <text> [delay]"))
                 return
             
-            delay = 0.05  # Ultra-fast flashing default speed
+            delay = 0.4  # Safe baseline delay to prevent 403 action blocks
             spam_text = " ".join(args)
             
             if len(args) > 1:
                 try:
                     possible_delay = float(args[-1])
-                    delay = max(0.01, possible_delay)  # Allow blazing sub-second speeds
+                    delay = max(0.4, possible_delay)
                     spam_text = " ".join(args[:-1])
                 except ValueError:
                     pass
 
-            # Instant kill switch for any existing spam
             self.stop_flag.set()
             if self.active_spam_task and not self.active_spam_task.done():
                 self.active_spam_task.cancel()
 
             self.stop_flag.clear()
-            asyncio.create_task(asyncio.to_thread(self.cl.direct_send, f"⚡ Hyper-Flash Spam Active | Delay: {delay}s", thread_ids=[self.target_thread_id]))
+            asyncio.create_task(asyncio.to_thread(self.cl.direct_answer, self.target_thread_id, f"⚡ Spam Active | Delay: {delay}s"))
 
             self.active_spam_task = asyncio.create_task(self.execute_spam_loop(spam_text, delay))
 
         elif cmd in [f"{self.prefix}unspam", f"{self.prefix}stop"]:
-            self.stop_flag.set()  # Triggers instant termination
+            self.stop_flag.set()
             if self.active_spam_task and not self.active_spam_task.done():
                 self.active_spam_task.cancel()
                 self.active_spam_task = None
-                asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "🛑 Spam aborted instantly!", thread_ids=[self.target_thread_id]))
+                asyncio.create_task(asyncio.to_thread(self.cl.direct_answer, self.target_thread_id, "🛑 Spam aborted successfully!"))
             else:
-                asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "⚠️ No active spam sequence running.", thread_ids=[self.target_thread_id]))
+                asyncio.create_task(asyncio.to_thread(self.cl.direct_answer, self.target_thread_id, "⚠️ No active spam sequence running."))
 
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
@@ -145,6 +143,7 @@ class AsyncInstagramCommandBot:
 async def main():
     print("[+] Initializing lightweight async Instagram client...")
     cl = Client()
+    cl.delay_range = [2, 4]  # Automatically adds a safe delay between requests
     session_file = "session.json"
 
     if os.path.exists(session_file):
