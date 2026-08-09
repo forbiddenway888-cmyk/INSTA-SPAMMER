@@ -104,19 +104,18 @@ class PlaywrightInstagramBot:
     async def sync_initial_messages(self):
         try:
             print("[+] Syncing existing chat messages...", flush=True)
-            for selector in ['div[role="row"]', 'div[role="listitem"]']:
-                loc = self.page.locator(selector)
-                count = await loc.count()
-                if count > 0:
-                    for i in range(count):
-                        el = loc.nth(i)
-                        txt = await el.inner_text()
-                        if txt:
-                            # Store a unique hash combining message position and content
-                            msg_hash = hash(f"{i}_{txt.strip()}")
-                            self.processed_message_hashes.add(msg_hash)
-                    print(f"[+] Synced {count} existing chat elements. Listening active! ⚡", flush=True)
-                    break
+            # Inject JS to invisibly tag all current messages as 'processed'
+            await self.page.evaluate('''
+                () => {
+                    const bubbles = document.querySelectorAll('div[dir="auto"]');
+                    bubbles.forEach(b => {
+                        if (b.innerText.trim().includes("^")) {
+                            b.setAttribute("data-bot-processed", "true");
+                        }
+                    });
+                }
+            ''')
+            print("[+] Synced existing chat history. JS tagging active! ⚡", flush=True)
         except Exception as e:
             print(f"[!] Warning during initial sync: {e}", flush=True)
 
@@ -131,33 +130,35 @@ class PlaywrightInstagramBot:
             print(f"[!] Send message error: {e}", flush=True)
 
     async def poll_loop(self):
-        print("[+] Hyper-speed polling loop active! Listening for commands...", flush=True)
+        print("[+] Hyper-speed JS polling loop active! Listening for commands...", flush=True)
         while self.is_running:
             try:
-                for selector in ['div[role="row"]', 'div[role="listitem"]']:
-                    loc = self.page.locator(selector)
-                    count = await loc.count()
-                    if count > 0:
-                        # Inspect the last 5 messages in the thread
-                        for i in range(max(0, count - 5), count):
-                            el = loc.nth(i)
-                            full_text = await el.inner_text()
-                            if full_text:
-                                cleaned = full_text.strip()
-                                msg_hash = hash(f"{i}_{cleaned}")
-                                
-                                # Check if this specific message instance has been processed
-                                if msg_hash not in self.processed_message_hashes:
-                                    self.processed_message_hashes.add(msg_hash)
-                                    
-                                    lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
-                                    for line in lines:
-                                        if line.startswith(self.prefix):
-                                            print(f"[+] Instant Command Caught: {line}", flush=True)
-                                            asyncio.create_task(self.process_command(line))
-                                            break
-                        break
-            except Exception:
+                # Ask the browser to find any new message bubble that hasn't been tagged yet
+                new_commands = await self.page.evaluate(f'''
+                    () => {{
+                        const bubbles = document.querySelectorAll('div[dir="auto"]');
+                        const found = [];
+                        bubbles.forEach(b => {{
+                            const text = b.innerText.trim();
+                            if (text.includes("{self.prefix}") && !b.hasAttribute("data-bot-processed")) {{
+                                found.push(text);
+                                b.setAttribute("data-bot-processed", "true"); // Tag it instantly
+                            }}
+                        }});
+                        return found;
+                    }}
+                ''')
+
+                # Process any newly found commands
+                for cmd_text in new_commands:
+                    lines = [l.strip() for l in cmd_text.splitlines() if l.strip()]
+                    for line in lines:
+                        if line.startswith(self.prefix):
+                            print(f"[+] Instant Command Caught: {line}", flush=True)
+                            asyncio.create_task(self.process_command(line))
+                            break
+                            
+            except Exception as e:
                 pass
             
             await asyncio.sleep(0.3)
