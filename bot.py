@@ -208,20 +208,15 @@ class PlaywrightInstagramBot:
 
         if cmd == f"{self.prefix}ping":
             try:
-                # Measure real live network latency using a lightweight browser fetch
-                latency_ms = await self.page.evaluate('''async () => {
-                    const start = performance.now();
-                    // Fetch a tiny resource with no-store to force a real network trip to Meta servers
-                    await fetch('/favicon.ico', { cache: 'no-store', method: 'HEAD' });
-                    return Math.round(performance.now() - start);
-                }''')
+                start_t = time.time()
+                # Measure exact round-trip dispatch latency to the browser & socket
+                await self.send_message("Pong! 🏓 Live Latency: Calculating... | Zero-Latency Engine Active! ⚡")
+                end_t = time.time()
                 
-                # Send the exact calculated latency inside the message!
-                await self.send_message(f"Pong! 🏓 Live Latency: {latency_ms}ms | Zero-Latency Engine Active! ⚡")
-                print(f"[+] Ping executed! Latency reported: {latency_ms}ms", flush=True)
+                latency_ms = round((end_t - start_t) * 1000, 2)
+                print(f"[+] Ping executed in {latency_ms}ms", flush=True)
             except Exception as e:
-                print(f"[!] Network ping error: {e}", flush=True)
-                await self.send_message("Pong! 🏓 Zero-Latency Engine Active! ⚡")
+                print(f"[!] Ping error: {e}", flush=True)
 
         elif cmd == f"{self.prefix}spam":
             if not args:
