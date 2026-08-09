@@ -104,11 +104,22 @@ class PlaywrightInstagramBot:
     async def sync_initial_messages(self):
         try:
             print("[+] Syncing existing chat messages...", flush=True)
-            await self.page.wait_for_selector('div[role="row"]', timeout=15000)
-            messages = await self.page.locator('div[role="row"]').all_inner_texts()
-            for m in messages[-10:]:
-                self.processed_message_texts.add(m.strip())
-            print("[+] Chat history synced. Web automation polling active! ⚡", flush=True)
+            elements = []
+            
+            # Try multiple fallback selectors in order of preference
+            for selector in ['div[role="row"]', 'div[role="listitem"]', 'div[dir="auto"]']:
+                loc = self.page.locator(selector)
+                count = await loc.count()
+                if count > 0:
+                    elements = await loc.all_inner_texts()
+                    break
+
+            for m in elements[-10:]:
+                cleaned = m.strip()
+                if cleaned:
+                    self.processed_message_texts.add(cleaned)
+
+            print(f"[+] Synced {len(elements[-10:])} initial chat items. Listening active! ⚡", flush=True)
         except Exception as e:
             print(f"[!] Warning during initial sync: {e}", flush=True)
 
