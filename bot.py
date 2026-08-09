@@ -348,23 +348,32 @@ class PlaywrightInstagramBot:
                 if self.stop_flag.is_set():
                     break
 
-                # 500 IQ STABILITY: We MUST await the payload. 
-                # This perfectly sequences the inputs so the browser pipe never chokes.
-                await self.blast_payload(payload)
+                # ==========================================
+                # 500 IQ TANK ARMOR: Try/Except the blast!
+                # If Instagram UI lags, it won't shatter the loop.
+                # ==========================================
+                try:
+                    await self.blast_payload(payload)
+                except Exception as e:
+                    print(f"[!] Minor DOM stutter (ignored, firing next): {e}", flush=True)
                 
                 # Active Memory Management: Force Python to empty RAM
                 msg_count += 1
                 if msg_count % 30 == 0:
                     gc.collect()
-                    # 500 IQ: Trigger the browser's C++ Garbage Collector directly via JS!
-                    # This instantly vaporizes React memory leaks without reloading the page.
                     try:
                         await self.page.evaluate("window.gc && window.gc();")
                     except Exception:
                         pass
+                
+                if not self.stop_flag.is_set():
+                    await asyncio.sleep(safe_delay)
                     
         except asyncio.CancelledError:
-            print("[!] Spam loop cancelled.", flush=True)
+            print("[+] Spam loop gracefully cancelled.", flush=True)
+        except Exception as e:
+            # THIS exposes any fatal logic errors so it NEVER dies silently again
+            print(f"\n[!] FATAL SPAM LOOP ERROR: {e}\n", flush=True)
             
 async def main():
     print("🚀 INITIALIZING IMMORTAL BOT ENGINE...", flush=True)
