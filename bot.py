@@ -110,49 +110,37 @@ class AsyncInstagramCommandBot:
                 asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "⚠️ No active spam sequence running.", thread_ids=[self.target_thread_id]))
 
     async def execute_spam_loop(self, base_text: str, delay: float):
-        import uuid
         try:
             block_num = 1
             while not self.stop_flag.is_set():
                 heart = random.choice(HEART_EMOJIS)
-                payload = generate_formatted_block(base_text, heart, line_count=20) # Reduced line count slightly to prevent payload truncation flags
+                payload = generate_formatted_block(base_text, heart, line_count=20)
                 
                 if self.stop_flag.is_set():
                     break
 
                 try:
-                    # Generate a unique client context ID per message to bypass duplicate filters
-                    unique_client_context = str(uuid.uuid4())
-                    
+                    # direct_answer is the native instagrapi method for existing thread IDs
                     await asyncio.to_thread(
-                        self.cl.private_request,
-                        "direct_v2/threads/broadcast/text/",
-                        data={
-                            "text": payload,
-                            "client_context": unique_client_context,
-                            "thread_ids": f'["{self.target_thread_id}"]'
-                        },
-                        login=True
+                        self.cl.direct_answer,
+                        self.target_thread_id,
+                        payload
                     )
                 except Exception as e:
                     err_str = str(e)
                     if "403" in err_str or "1404006" in err_str:
-                        print(f"[!] Hit Instagram security block. Backing off for 3 seconds...")
-                        await asyncio.sleep(3)
+                        await asyncio.sleep(2)
                     else:
                         await asyncio.sleep(1)
                     continue
 
                 block_num += 1
-                # Enforce safe delay floor (0.6s) to ensure 100% stability against 403 blocks
-                safe_delay = max(0.6, delay)
+                safe_delay = max(0.4, delay)
                 if not self.stop_flag.is_set():
                     await asyncio.sleep(safe_delay)
                     
         except asyncio.CancelledError:
             print("[!] Spam loop cancelled.")
-        except Exception as e:
-            print(f"[!] Spam error: {e}")
             
 async def main():
     print("[+] Initializing lightweight async Instagram client...")
