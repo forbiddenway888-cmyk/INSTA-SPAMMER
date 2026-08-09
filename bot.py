@@ -98,15 +98,17 @@ class AsyncInstagramCommandBot:
 
         if cmd == f"{self.prefix}ping":
             start_t = time.time()
-            await asyncio.to_thread(self.cl.account_info)
-            end_t = time.time()
-            
-            latency_ms = round((end_t - start_t) * 1000, 2)
-            await asyncio.to_thread(
-                self.cl.direct_answer,
-                self.target_thread_id,
-                f"Pong! 🏓 Latency: {latency_ms}ms | Bot active!"
-            )
+            try:
+                await asyncio.to_thread(self.cl.account_info)
+                end_t = time.time()
+                latency_ms = round((end_t - start_t) * 1000, 2)
+                await asyncio.to_thread(
+                    self.cl.direct_answer,
+                    self.target_thread_id,
+                    f"Pong! 🏓 Latency: {latency_ms}ms | Bot active!"
+                )
+            except Exception as e:
+                print(f"[!] Ping command error: {e}", flush=True)
 
         elif cmd == f"{self.prefix}spam":
             if not args:
@@ -159,6 +161,7 @@ class AsyncInstagramCommandBot:
                         payload
                     )
                 except Exception as e:
+                    print(f"[!] Send error caught: {e}", flush=True)  # <-- This will print the exact reason
                     err_str = str(e)
                     if "403" in err_str or "1404006" in err_str:
                         await asyncio.sleep(2)
