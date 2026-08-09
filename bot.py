@@ -44,7 +44,11 @@ class PlaywrightInstagramBot:
                 "--disable-gpu",
                 "--disable-software-rasterizer",
                 "--no-zygote",
-                "--disable-extensions"
+                "--disable-extensions",
+                # The 500 IQ Anti-Sleep Flags:
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding"
             ]
         )
         
@@ -176,18 +180,18 @@ class PlaywrightInstagramBot:
             try:
                 current_time = time.time()
                 
-                # 500 IQ GHOST HEARTBEAT: Fire every 3 minutes (180 seconds)
-                if current_time - last_heartbeat_time > 180:
-                    # Check if a spam loop is currently running
+               # 500 IQ GHOST HEARTBEAT: Fire every 2.5 minutes (150 seconds)
+                if current_time - last_heartbeat_time > 150:
                     is_spamming = hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done()
                     
                     if not is_spamming:
-                        # Move the mouse to a random spot and tap 'Shift' to prove human presence
-                        import random
-                        await self.page.mouse.move(random.randint(100, 500), random.randint(100, 500))
-                        await self.page.keyboard.press("Shift")
+                        try:
+                            # Actually click the text box so Meta's React engine registers human presence
+                            box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
+                            await box.click(timeout=2000)
+                        except Exception:
+                            pass
                         
-                    # Reset the timer regardless
                     last_heartbeat_time = time.time()
 
                 # Ask the browser to find any new message bubble that hasn't been tagged yet
