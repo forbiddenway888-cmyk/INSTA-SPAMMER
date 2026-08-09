@@ -314,7 +314,7 @@ class PlaywrightInstagramBot:
                 return
             
             # 0.05s is the theoretical Meta packet-drop limit based on your local script
-            delay = 0.05
+            delay = 0.24
             spam_text = " ".join(args)
             
             if len(args) > 1:
