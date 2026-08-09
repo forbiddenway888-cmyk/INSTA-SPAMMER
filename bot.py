@@ -314,15 +314,12 @@ async def main():
     print("🚀 INITIALIZING IMMORTAL BOT ENGINE...", flush=True)
     while True:
         try:
-            # Boot the bot
-            bot = PlaywrightInstagramBot() 
+            # 500 IQ FIX: We actually pass the target thread ID this time!
+            bot = PlaywrightInstagramBot("3678408248973250") 
             await bot.start()
         except Exception as e:
             print(f"[!] Engine failure caught in main: {e}", flush=True)
         
-        # If the bot breaks out of start() because of our Phoenix Protocol,
-        # it hits this block, sleeps for 3 seconds to let the RAM completely flush,
-        # and loops back up to boot a fresh browser!
         print("[*] RAM flushed. Rebooting fresh instance in 3 seconds...", flush=True)
         await asyncio.sleep(3)
 
