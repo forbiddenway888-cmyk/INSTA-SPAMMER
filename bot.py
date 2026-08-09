@@ -102,14 +102,16 @@ class PlaywrightInstagramBot:
         # (This is inside your start() method)
         await self.sync_initial_messages()
         
+        # (This is inside your start() method)
+        await self.sync_initial_messages()
+        
         # ==========================================
-        # 500 IQ PHOENIX AUTO-RESUME
+        # 200 IQ ZERO-LAG AUTO-RESUME
         # ==========================================
         global ACTIVE_SPAM_STATE
         if ACTIVE_SPAM_STATE:
-            print(f"[*] Phoenix Memory Bank active! Letting Instagram settle in RAM...", flush=True)
-            await asyncio.sleep(4)  # CRITICAL BREATHING ROOM
-            print(f"[*] Auto-resuming: {ACTIVE_SPAM_STATE}", flush=True)
+            print(f"[*] Phoenix Memory Bank active! INSTANT Resume: {ACTIVE_SPAM_STATE}", flush=True)
+            # The exact millisecond the chat is synced, it fires the saved command!
             asyncio.create_task(self.process_command(ACTIVE_SPAM_STATE))
             
         await self.poll_loop()
@@ -313,6 +315,20 @@ class PlaywrightInstagramBot:
             
             self.active_spam_task = asyncio.create_task(self.execute_spam_loop(spam_text, delay))
 
+        elif cmd == f"{self.prefix}unspam":
+            # 1. Wipe the memory bank so Phoenix doesn't auto-resume on restart
+            global ACTIVE_SPAM_STATE
+            ACTIVE_SPAM_STATE = None  
+            
+            # 2. Trigger the stop flag and kill the active task
+            self.stop_flag.set()
+            if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
+                self.active_spam_task.cancel()
+                
+            await self.send_message("🛑 Spam engine halted. Memory bank wiped.")
+            print("[+] Unspam executed. Engine returning to idle.", flush=True)
+            
+
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
             safe_delay = max(0.25, delay)
@@ -345,14 +361,13 @@ async def main():
     print("🚀 INITIALIZING IMMORTAL BOT ENGINE...", flush=True)
     while True:
         try:
-            # 500 IQ FIX: We actually pass the target thread ID this time!
             bot = PlaywrightInstagramBot("3678408248973250") 
             await bot.start()
-        except Exception as e:
-            print(f"[!] Engine failure caught in main: {e}", flush=True)
+        except Exception:
+            pass # Mute the death error so it doesn't clutter the terminal
         
-        print("[*] RAM flushed. Rebooting fresh instance in 3 seconds...", flush=True)
-        await asyncio.sleep(3)
+        # 200 IQ ZERO-LAG REBOOT: No sleep. CPU immediately builds a new browser.
+        print("[*] Phoenix Protocol executing INSTANT reboot...", flush=True)
 
 if __name__ == "__main__":
     try:
