@@ -110,10 +110,8 @@ class AsyncInstagramCommandBot:
                 asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "⚠️ No active spam sequence running.", thread_ids=[self.target_thread_id]))
 
     async def execute_spam_loop(self, base_text: str, delay: float):
-        # 12 parallel async workers flooding raw API sockets simultaneously
-        concurrency_workers = 12
-        
-        async def flood_worker():
+        try:
+            block_num = 1
             while not self.stop_flag.is_set():
                 heart = random.choice(HEART_EMOJIS)
                 payload = generate_formatted_block(base_text, heart, line_count=40)
@@ -122,32 +120,33 @@ class AsyncInstagramCommandBot:
                     break
 
                 try:
-                    # Low-level private API endpoint bypasses wrapper parsing overhead entirely
-                    asyncio.create_task(asyncio.to_thread(
-                        self.cl.private_request,
-                        "direct_v2/threads/broadcast/text/",
-                        data={
-                            "text": payload,
-                            "thread_ids": f'["{self.target_thread_id}"]'
-                        },
-                        login=True
-                    ))
+                    # Use standard wrapper method with proper session tracking
+                    await asyncio.to_thread(
+                        self.cl.direct_send,
+                        payload,
+                        thread_ids=[self.target_thread_id]
+                    )
                 except Exception as e:
-                    if "429" in str(e) or "FeedbackRequired" in str(e):
-                        await asyncio.sleep(0.5)
+                    err_str = str(e)
+                    # If Instagram triggers a 403 block or rate limit, back off safely
+                    if "403" in err_str or "429" in err_str or "1404006" in err_str:
+                        print(f"[!] Instagram security block triggered. Backing off for 4 seconds...")
+                        await asyncio.sleep(4)
+                    else:
+                        await asyncio.sleep(1)
                     continue
 
-                if delay > 0 and not self.stop_flag.is_set():
-                    await asyncio.sleep(delay)
-
-        tasks = [asyncio.create_task(flood_worker()) for _ in range(concurrency_workers)]
-        
-        try:
-            await asyncio.gather(*tasks)
+                block_num += 1
+                # Enforce a safe floor delay (0.4s) to keep blasting fast without hitting 403 blocks
+                safe_delay = max(0.4, delay)
+                if not self.stop_flag.is_set():
+                    await asyncio.sleep(safe_delay)
+                    
         except asyncio.CancelledError:
-            for t in tasks:
-                t.cancel()
-
+            print("[!] Spam loop cancelled.")
+        except Exception as e:
+            print(f"[!] Spam error: {e}")
+            
 async def main():
     print("[+] Initializing lightweight async Instagram client...")
     cl = Client()
