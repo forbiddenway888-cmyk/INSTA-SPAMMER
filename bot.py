@@ -127,26 +127,25 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
+        # 1000 IQ BYPASS: We do NOT use self.page.locator() anymore. 
+        # By evaluating directly on the page, we bypass Playwright's "Auto-Wait" feature.
+        # This injects the text instantly even if the chat is violently scrolling!
         
-        # We inject your God-Tier React event dispatcher directly into the page!
-        await box.evaluate(
-            """(element, text) => {
-                element.focus();
-                
-                // 1. Instantly clear any leftover text from a previous lag spike
-                element.textContent = '';
-                
-                // 2. Inject the new payload
-                element.textContent = text;
-                
-                // 3. Force Instagram's React engine to accept the text
-                element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+        await self.page.evaluate(
+            """(text) => {
+                // Find the box natively inside React's DOM
+                const box = document.querySelector("div[contenteditable='true'][role='textbox'], p.xdj266r");
+                if (box) {
+                    box.focus();
+                    box.textContent = ''; // Clear old lag
+                    box.textContent = text; // Inject payload
+                    box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+                }
             }""",
             arg=text
         )
         
-        # Because React now knows the text is there, Enter will actually send it!
+        # Hardware-level Enter key dispatch (bypasses UI throttling)
         await self.page.keyboard.press("Enter")
             
 
