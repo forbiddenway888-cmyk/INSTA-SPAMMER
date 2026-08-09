@@ -12,29 +12,33 @@ def generate_formatted_block(base_text: str, selected_heart: str, line_count: in
     return "\n\n".join(lines)
 
 def get_free_proxy():
-    try:
-        print("[+] Scraping and testing fresh public proxies...", flush=True)
-        url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=3000&country=all&ssl=yes"
-        response = requests.get(url, timeout=4)
-        
-        if response.status_code == 200:
-            proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
-            random.shuffle(proxies)
+    while True:
+        try:
+            print("[+] Scraping fresh public proxies...", flush=True)
+            url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=yes"
+            response = requests.get(url, timeout=5)
             
-            # Test up to 10 proxies to find one that actually responds
-            for p in proxies[:10]:
-                test_proxy = {"http": f"http://{p}", "https": f"http://{p}"}
-                try:
-                    # Test if proxy can reach Instagram successfully within 2 seconds
-                    r = requests.get("https://i.instagram.com/api/v1/si/fetch_headers/", proxies=test_proxy, timeout=2)
-                    if r.status_code < 500:
-                        print(f"[+] Found working verified proxy: {p}", flush=True)
-                        return f"http://{p}"
-                except:
-                    continue
-    except Exception as e:
-        print(f"[!] Proxy test error: {e}", flush=True)
-    return None
+            if response.status_code == 200:
+                proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
+                random.shuffle(proxies)
+                
+                print(f"[+] Testing batch of {min(len(proxies), 30)} proxies...", flush=True)
+                for p in proxies[:30]:
+                    test_proxy = {"http": f"http://{p}", "https": f"http://{p}"}
+                    try:
+                        # Test if the proxy can successfully reach Instagram
+                        r = requests.get("https://www.instagram.com", proxies=test_proxy, timeout=3)
+                        if r.status_code == 200:
+                            print(f"[+] Verified working proxy locked: {p}", flush=True)
+                            return f"http://{p}"
+                    except:
+                        continue
+                        
+            print("[!] No working proxies in this batch. Retrying scraper in 3 seconds...", flush=True)
+            time.sleep(3)
+        except Exception as e:
+            print(f"[!] Proxy scraper error: {e}. Retrying...", flush=True)
+            time.sleep(3)
 
 class AsyncInstagramCommandBot:
     def __init__(self, client: Client, target_thread_id: str, prefix: str = "^"):
