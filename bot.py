@@ -18,6 +18,7 @@ class AsyncInstagramCommandBot:
         self.is_running = True
         self.processed_message_ids = set()
         self.active_spam_task = None
+        self.stop_flag = asyncio.Event()  # Instant breaker flag
 
     async def start_listener(self):
         print(f"[+] Initializing Hyper-Speed Async API Listener...")
@@ -75,73 +76,64 @@ class AsyncInstagramCommandBot:
 
         elif cmd == f"{self.prefix}spam":
             if not args:
-                await asyncio.to_thread(self.cl.direct_send, "Usage: ^spam <text> [delay_in_seconds]", thread_ids=[self.target_thread_id])
+                asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "Usage: ^spam <text> [delay]", thread_ids=[self.target_thread_id]))
                 return
             
-            delay = 0.4
+            delay = 0.05  # Ultra-fast flashing default speed
             spam_text = " ".join(args)
             
             if len(args) > 1:
                 try:
                     possible_delay = float(args[-1])
-                    delay = max(0.3, possible_delay)
+                    delay = max(0.01, possible_delay)  # Allow blazing sub-second speeds
                     spam_text = " ".join(args[:-1])
                 except ValueError:
                     pass
 
-            if not spam_text:
-                await asyncio.to_thread(self.cl.direct_send, "Usage: ^spam <text> [delay_in_seconds]", thread_ids=[self.target_thread_id])
-                return
-
-            await asyncio.to_thread(
-                self.cl.direct_send,
-                f"⚡ Async Infinite Spam Initialized | Text: '{spam_text}' | Delay: {delay}s",
-                thread_ids=[self.target_thread_id]
-            )
-
+            # Instant kill switch for any existing spam
+            self.stop_flag.set()
             if self.active_spam_task and not self.active_spam_task.done():
                 self.active_spam_task.cancel()
+
+            self.stop_flag.clear()
+            asyncio.create_task(asyncio.to_thread(self.cl.direct_send, f"⚡ Hyper-Flash Spam Active | Delay: {delay}s", thread_ids=[self.target_thread_id]))
 
             self.active_spam_task = asyncio.create_task(self.execute_spam_loop(spam_text, delay))
 
         elif cmd in [f"{self.prefix}unspam", f"{self.prefix}stop"]:
+            self.stop_flag.set()  # Triggers instant termination
             if self.active_spam_task and not self.active_spam_task.done():
                 self.active_spam_task.cancel()
                 self.active_spam_task = None
-                await asyncio.to_thread(
-                    self.cl.direct_send,
-                    "🛑 Active spam sequence successfully aborted via async cancellation!",
-                    thread_ids=[self.target_thread_id]
-                )
-                print("[+] Spam task cancelled.")
+                asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "🛑 Spam aborted instantly!", thread_ids=[self.target_thread_id]))
             else:
-                await asyncio.to_thread(
-                    self.cl.direct_send,
-                    "⚠️ No active spam sequence is currently running.",
-                    thread_ids=[self.target_thread_id]
-                )
+                asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "⚠️ No active spam sequence running.", thread_ids=[self.target_thread_id]))
 
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
             block_num = 1
-            while True:
+            while not self.stop_flag.is_set():
                 heart = random.choice(HEART_EMOJIS)
                 payload = generate_formatted_block(base_text, heart, line_count=40)
                 
+                if self.stop_flag.is_set():
+                    break
+
+                # Non-blocking dispatch with immediate flag check
                 await asyncio.to_thread(
                     self.cl.direct_send,
                     payload,
                     thread_ids=[self.target_thread_id]
                 )
-                print(f"[+] Dispatched async spam block {block_num} | Delay: {delay}s")
+                
                 block_num += 1
-                
-                await asyncio.sleep(delay)
-                
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                    
         except asyncio.CancelledError:
-            print("[!] Async spam loop was successfully cancelled.")
+            pass
         except Exception as e:
-            print(f"[!] Error in async spam loop: {e}")
+            print(f"[!] Hyper-spam loop error: {e}")
 
 async def main():
     print("[+] Initializing lightweight async Instagram client...")
