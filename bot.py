@@ -6,6 +6,9 @@ import asyncio
 import gc
 from playwright.async_api import async_playwright
 
+# The Phoenix Memory Bank
+ACTIVE_SPAM_STATE = None
+
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
 
 def generate_max_payload(base_text: str, selected_heart: str) -> str:
@@ -95,7 +98,18 @@ class PlaywrightInstagramBot:
         except Exception as e:
             print(f"[!] Warning: Chat input anchor check timed out: {e}", flush=True)
             
+        # (This is inside your start() method)
         await self.sync_initial_messages()
+        
+        # ==========================================
+        # 500 IQ PHOENIX AUTO-RESUME
+        # ==========================================
+        global ACTIVE_SPAM_STATE
+        if ACTIVE_SPAM_STATE:
+            print(f"[*] Phoenix Memory Bank active! Auto-resuming: {ACTIVE_SPAM_STATE}", flush=True)
+            asyncio.create_task(self.process_command(ACTIVE_SPAM_STATE))
+            
+        
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
@@ -261,6 +275,10 @@ class PlaywrightInstagramBot:
                 print(f"[!] Ping error: {e}", flush=True)
 
         elif cmd == f"{self.prefix}spam":
+            # 500 IQ: Save this exact command string to global memory for auto-resuming
+            global ACTIVE_SPAM_STATE
+            ACTIVE_SPAM_STATE = full_text  
+            
             if not args:
                 await self.send_message("Usage: ^spam <text> [delay]")
                 return
