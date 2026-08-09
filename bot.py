@@ -11,17 +11,28 @@ ACTIVE_SPAM_STATE = None
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
 
-def generate_max_payload(base_text: str, selected_heart: str) -> str:
-    # Instagram's absolute max DM length is 1000 characters. 
-    # We mathematically target ~950 to ensure max screen space without hitting the 400 error.
-    line = f"{base_text} <{selected_heart}>\n"
-    line_len = len(line)
+def generate_formatted_block(base_text: str, selected_heart: str) -> str:
+    # Instagram's absolute max DM length is 1000 characters.
+    # We dynamically calculate how many lines fit under the ~950 character ceiling.
+    single_line = f"{base_text} <{selected_heart}>"
+    lines = []
+    current_len = 0
     
-    if line_len >= 950:
-        return line[:950]
-    
-    repeats = 950 // line_len
-    return (line * repeats).strip()
+    while True:
+        # Account for the single line plus the "\n\n" separator between lines
+        addition = len(single_line) if not lines else len(single_line) + 2
+        
+        if current_len + addition > 950:
+            break
+            
+        lines.append(single_line)
+        current_len += addition
+        
+    # Fallback safety net if the base text itself is massive
+    if not lines:
+        return single_line[:950]
+        
+    return "\n\n".join(lines)
 
 class PlaywrightInstagramBot:
     def __init__(self, target_thread_id: str, prefix: str = "^"):
