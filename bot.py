@@ -127,17 +127,26 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # We do NOT use try/except here. We let the outer Tank Armor catch it!
         box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
-        await box.focus()
         
-        # SUPER AI INJECTION: document.execCommand bypasses React's virtual DOM completely.
-        # It natively writes the text into the focused box using Chromium's C++ engine.
-        # This is physically the fastest way a browser can accept text.
-        escaped_text = text.replace('`', '\\`') # Prevent JS syntax errors
-        await self.page.evaluate(f'document.execCommand("insertText", false, `{escaped_text}`);')
+        # We inject your God-Tier React event dispatcher directly into the page!
+        await box.evaluate(
+            """(element, text) => {
+                element.focus();
+                
+                // 1. Instantly clear any leftover text from a previous lag spike
+                element.textContent = '';
+                
+                // 2. Inject the new payload
+                element.textContent = text;
+                
+                // 3. Force Instagram's React engine to accept the text
+                element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+            }""",
+            arg=text
+        )
         
-        # Hardware-level Enter key dispatch
+        # Because React now knows the text is there, Enter will actually send it!
         await self.page.keyboard.press("Enter")
             
 
