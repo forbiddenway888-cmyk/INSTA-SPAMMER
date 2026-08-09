@@ -64,7 +64,7 @@ def main():
                 print(f"[!] Error in listener loop: {e}")
                 time.sleep(2)
 
-            time.sleep(1)  # Blazing fast yet safe polling interval
+        time.sleep(1)  # Make sure this has 8 spaces of indentation, aligned with 'try:'
 
 if __name__ == "__main__":
     main()
