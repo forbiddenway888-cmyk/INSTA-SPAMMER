@@ -13,16 +13,21 @@ HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡"
 
 def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 40) -> str:
     lines = []
-    for _ in range(line_count):
-        lines.append(f"{base_text} <{selected_heart}>")
-        
-    block = "\n\n".join(lines)
+    current_len = 0
     
-    # Mathematical Safety Net: Ensure it never crosses Instagram's 950-char safety limit
-    if len(block) > 950:
-        return block[:950]
+    for _ in range(line_count):
+        line = f"{base_text} <{selected_heart}>"
+        # Calculate length of the line plus the "\n\n" separator
+        addition = len(line) + 2 
         
-    return block
+        # If adding this next line breaches the 950 limit, stop adding lines
+        if current_len + addition > 950:
+            break
+            
+        lines.append(line)
+        current_len += addition
+        
+    return "\n\n".join(lines)
 
 class PlaywrightInstagramBot:
     def __init__(self, target_thread_id: str, prefix: str = "^"):
