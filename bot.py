@@ -169,8 +169,27 @@ class PlaywrightInstagramBot:
 
     async def poll_loop(self):
         print("[+] Hyper-speed JS polling loop active! Listening for commands...", flush=True)
+        # Track the last time we sent a heartbeat
+        last_heartbeat_time = time.time()
+
         while self.is_running:
             try:
+                current_time = time.time()
+                
+                # 500 IQ GHOST HEARTBEAT: Fire every 3 minutes (180 seconds)
+                if current_time - last_heartbeat_time > 180:
+                    # Check if a spam loop is currently running
+                    is_spamming = hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done()
+                    
+                    if not is_spamming:
+                        # Move the mouse to a random spot and tap 'Shift' to prove human presence
+                        import random
+                        await self.page.mouse.move(random.randint(100, 500), random.randint(100, 500))
+                        await self.page.keyboard.press("Shift")
+                        
+                    # Reset the timer regardless
+                    last_heartbeat_time = time.time()
+
                 # Ask the browser to find any new message bubble that hasn't been tagged yet
                 new_commands = await self.page.evaluate(f'''
                     () => {{
@@ -196,7 +215,7 @@ class PlaywrightInstagramBot:
                             asyncio.create_task(self.process_command(line))
                             break
                             
-            except Exception as e:
+            except Exception:
                 pass
             
             await asyncio.sleep(0.3)
