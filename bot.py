@@ -20,19 +20,19 @@ class AsyncInstagramCommandBot:
         self.active_spam_task = None
 
     async def start_listener(self):
-        print(f"[+] Initializing Async API Command Listener...")
+        print(f"[+] Initializing Hyper-Speed Async API Listener...")
 
-        # Seed initial messages to ignore old history
         try:
             initial_thread = await asyncio.to_thread(self.cl.direct_thread, self.target_thread_id)
             for m in initial_thread.messages[:5]:
                 self.processed_message_ids.add(m.id)
-            print("[+] Synced chat history. Async listener live! ⚡")
+            print("[+] Synced chat history. Hyper-speed polling active! ⚡")
         except Exception as e:
             print(f"[!] Warning during initial sync: {e}")
 
         while self.is_running:
             try:
+                # Fetch latest messages with minimal overhead
                 thread = await asyncio.to_thread(self.cl.direct_thread, self.target_thread_id)
                 messages = thread.messages
                 
@@ -45,15 +45,16 @@ class AsyncInstagramCommandBot:
                         self.processed_message_ids.add(msg_id)
                         
                         if msg_text.startswith(self.prefix):
-                            print(f"[+] Async Command Caught: {msg_text}")
-                            await self.process_command(msg_text)
+                            print(f"[+] Instant Command Caught: {msg_text}")
+                            asyncio.create_task(self.process_command(msg_text))
                 
-                await asyncio.sleep(0.8) # Blazing fast non-blocking poll
+                # Pushed to 0.25s for maximum snap speed
+                await asyncio.sleep(0.25)
                 
             except Exception as e:
-                print(f"[!] Error in async listener loop: {e}")
-                await asyncio.sleep(2)
-
+                print(f"[!] Error in hyper-speed loop: {e}")
+                await asyncio.sleep(1)
+                
     async def process_command(self, full_text: str):
         parts = full_text.split(" ")
         cmd = parts[0].lower()
