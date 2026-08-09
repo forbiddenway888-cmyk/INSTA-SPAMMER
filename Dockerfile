@@ -1,5 +1,5 @@
-# Use the updated Microsoft Playwright Python image matching 1.62.0
-FROM mcr.microsoft.com/playwright/python:v1.62.0-jammy
+# Use a lightweight official Python image
+FROM python:3.10-slim
 
 # Set working directory inside the container
 WORKDIR /app
@@ -8,8 +8,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your bot files into the container
+# Copy all project files into the container
 COPY . .
 
-# Command to run your bot script (use bot.py based on your repo)
+# Command to run your bot script
 CMD ["python", "bot.py"]
