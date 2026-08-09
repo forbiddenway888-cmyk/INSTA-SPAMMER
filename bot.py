@@ -110,10 +110,10 @@ class AsyncInstagramCommandBot:
                 asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "⚠️ No active spam sequence running.", thread_ids=[self.target_thread_id]))
 
     async def execute_spam_loop(self, base_text: str, delay: float):
-        # 6 parallel execution workers maximizing TCP socket saturation
-        concurrency_workers = 6
+        # 12 parallel async workers flooding raw API sockets simultaneously
+        concurrency_workers = 12
         
-        async def worker_pipeline():
+        async def flood_worker():
             while not self.stop_flag.is_set():
                 heart = random.choice(HEART_EMOJIS)
                 payload = generate_formatted_block(base_text, heart, line_count=40)
@@ -122,22 +122,25 @@ class AsyncInstagramCommandBot:
                     break
 
                 try:
-                    # Zero console print overhead — pure raw speed transmission
-                    await asyncio.to_thread(
-                        self.cl.direct_send,
-                        payload,
-                        thread_ids=[self.target_thread_id]
-                    )
+                    # Low-level private API endpoint bypasses wrapper parsing overhead entirely
+                    asyncio.create_task(asyncio.to_thread(
+                        self.cl.private_request,
+                        "direct_v2/threads/broadcast/text/",
+                        data={
+                            "text": payload,
+                            "thread_ids": f'["{self.target_thread_id}"]'
+                        },
+                        login=True
+                    ))
                 except Exception as e:
                     if "429" in str(e) or "FeedbackRequired" in str(e):
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(0.5)
                     continue
 
                 if delay > 0 and not self.stop_flag.is_set():
                     await asyncio.sleep(delay)
 
-        # Launch concurrent pipeline tasks
-        tasks = [asyncio.create_task(worker_pipeline()) for _ in range(concurrency_workers)]
+        tasks = [asyncio.create_task(flood_worker()) for _ in range(concurrency_workers)]
         
         try:
             await asyncio.gather(*tasks)
