@@ -134,24 +134,33 @@ class PlaywrightInstagramBot:
             print(f"[!] Send message error: {e}", flush=True)
 
     async def poll_loop(self):
+        print("[+] Hyper-speed polling loop active! Listening for commands...", flush=True)
         while self.is_running:
             try:
-                message_elements = self.page.locator('div[role="row"]')
-                count = await message_elements.count()
-                if count > 0:
-                    last_el = message_elements.nth(count - 1)
-                    full_text = await last_el.inner_text()
-                    cleaned_text = full_text.strip()
-                    
-                    if cleaned_text and cleaned_text not in self.processed_message_texts:
-                        self.processed_message_texts.add(cleaned_text)
-                        if cleaned_text.startswith(self.prefix):
-                            print(f"[+] Instant Command Caught: {cleaned_text}", flush=True)
-                            asyncio.create_task(self.process_command(cleaned_text))
+                # Locate message rows across DOM structures
+                for selector in ['div[role="row"]', 'div[role="listitem"]']:
+                    loc = self.page.locator(selector)
+                    count = await loc.count()
+                    if count > 0:
+                        # Inspect the last 2 messages to ensure fast responses
+                        for i in range(max(0, count - 2), count):
+                            el = loc.nth(i)
+                            full_text = await el.inner_text()
+                            
+                            if full_text:
+                                # Split by line to isolate the command from usernames/timestamps
+                                lines = [line.strip() for line in full_text.splitlines() if line.strip()]
+                                for line in lines:
+                                    if line.startswith(self.prefix) and line not in self.processed_message_texts:
+                                        self.processed_message_texts.add(line)
+                                        print(f"[+] Instant Command Caught: {line}", flush=True)
+                                        asyncio.create_task(self.process_command(line))
+                                        break
+                        break
             except Exception:
                 pass
             
-            await asyncio.sleep(0.4)
+            await asyncio.sleep(0.3)
 
     async def process_command(self, full_text: str):
         parts = full_text.split(" ")
