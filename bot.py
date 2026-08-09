@@ -69,11 +69,11 @@ class PlaywrightInstagramBot:
         # 2. Anchor on the message box (proves the thread is loaded)
         try:
             print("[+] Waiting for chat input box anchor...", flush=True)
-            await self.page.wait_for_selector('div[contenteditable="true"]', timeout=30000)
+            await self.page.wait_for_selector("div[contenteditable='true'][role='textbox'], p.xdj266r", timeout=30000)
             print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
         except Exception as e:
             print(f"[!] Warning: Chat input anchor check timed out: {e}", flush=True)
-
+            
         await self.sync_initial_messages()
         await self.poll_loop()
 
@@ -121,11 +121,24 @@ class PlaywrightInstagramBot:
 
     async def send_message(self, text: str):
         try:
-            input_box = self.page.locator('div[contenteditable="true"][aria-label="Message"]')
-            await input_box.click()
-            await input_box.fill(text)
+            # Use the robust selector from your script
+            box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
+            
+            # Direct DOM value injection coupled with forced React event dispatch
+            await box.evaluate(
+                """(element, text) => {
+                    element.focus();
+                    element.textContent = text;
+                    element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+                }""",
+                arg=text
+            )
+            
+            # Instant programmatic keypress for submission
             await self.page.keyboard.press("Enter")
-            await asyncio.sleep(0.3)
+            
+            # Absolute maximum threshold before Meta's server drops packets (from your script)
+            await asyncio.sleep(0.28)
         except Exception as e:
             print(f"[!] Send message error: {e}", flush=True)
 
