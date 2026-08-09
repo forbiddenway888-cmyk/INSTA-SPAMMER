@@ -49,21 +49,34 @@ class PlaywrightInstagramBot:
                 "--disable-software-rasterizer",
                 "--no-zygote",
                 "--disable-extensions",
-                # The 500 IQ Anti-Sleep Flags:
                 "--disable-background-timer-throttling",
                 "--disable-backgrounding-occluded-windows",
-                "--js-flags=--max-old-space-size=250",
-                "--disable-renderer-backgrounding"
+                "--disable-renderer-backgrounding",
+                # 500 IQ: Cap RAM at 250MB AND expose the native C++ Garbage Collector!
+                "--js-flags=--max-old-space-size=250 --expose-gc"
             ]
         )
         
-        self.context = await self.browser.new_context(
+       self.context = await self.browser.new_context(
             viewport={"width": 800, "height": 600},
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
         
-        # 500 IQ MOVE: Permanently lie to Instagram's React engine.
-        # This executes on every page before Instagram's JS even loads, forcing the tab to act "Visible".
+        # ==========================================
+        # 500 IQ INVINCIBILITY: The Media Blackhole
+        # ==========================================
+        async def block_heavy_assets(route):
+            if route.request.resource_type in ["image", "media", "font"]:
+                await route.abort()
+            else:
+                await route.continue_()
+                
+        # Apply the blackhole to the entire browser context
+        await self.context.route("**/*", block_heavy_assets)
+
+        # ==========================================
+        # 500 IQ VISIBILITY SPOOF
+        # ==========================================
         await self.context.add_init_script("""
             Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
             Object.defineProperty(document, 'hidden', { get: () => false });
@@ -73,9 +86,6 @@ class PlaywrightInstagramBot:
         await self.load_cookies()
         
         self.page = await self.context.new_page()
-        
-        # REMOVE "stylesheet" from the blocked list:
-        await self.page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
         
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
         await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
@@ -99,10 +109,7 @@ class PlaywrightInstagramBot:
         except Exception as e:
             print(f"[!] Warning: Chat input anchor check timed out: {e}", flush=True)
             
-        # (This is inside your start() method)
-        await self.sync_initial_messages()
-        
-        # (This is inside your start() method)
+        # Sync initial messages ONCE
         await self.sync_initial_messages()
         
         # ==========================================
@@ -345,14 +352,16 @@ class PlaywrightInstagramBot:
                 # This perfectly sequences the inputs so the browser pipe never chokes.
                 await self.blast_payload(payload)
                 
-                # Active Memory Management: Force Python to empty RAM every 30 messages
-                # This guarantees Railway never hits the 500MB limit during a long spam session!
+                # Active Memory Management: Force Python to empty RAM
                 msg_count += 1
                 if msg_count % 30 == 0:
                     gc.collect()
-                
-                if not self.stop_flag.is_set():
-                    await asyncio.sleep(safe_delay)
+                    # 500 IQ: Trigger the browser's C++ Garbage Collector directly via JS!
+                    # This instantly vaporizes React memory leaks without reloading the page.
+                    try:
+                        await self.page.evaluate("window.gc && window.gc();")
+                    except Exception:
+                        pass
                     
         except asyncio.CancelledError:
             print("[!] Spam loop cancelled.", flush=True)
