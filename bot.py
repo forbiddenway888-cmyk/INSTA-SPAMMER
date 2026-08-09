@@ -135,24 +135,17 @@ class PlaywrightInstagramBot:
         try:
             box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
             
-            # Direct property injection for max speed
+            # Ultra-lightweight injection: avoids heavy range selection DOM thrashing
             await box.evaluate(
                 """(element, payloadText) => {
                     element.focus();
-                    let selection = window.getSelection();
-                    let range = document.createRange();
-                    range.selectNodeContents(element);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                    
-                    // Direct text setting + React trigger
                     element.textContent = payloadText;
                     element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: payloadText }));
                 }""",
                 arg=text
             )
             
-            # Smash Enter via browser engine
+            # Clean browser-level Enter dispatch
             await self.page.keyboard.press("Enter")
             return True
         except Exception:
