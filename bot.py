@@ -11,15 +11,15 @@ ACTIVE_SPAM_STATE = None
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
 
-def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 25) -> str:
+def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 20) -> str:
     lines = []
     current_len = 0
     
     for _ in range(line_count):
-        line = f"⚡ {base_text} <{selected_heart}> ⚡"
+        # Properly formats with the heart emoji inside the angle brackets
+        line = f"{base_text} <{selected_heart}>"
         addition = len(line) + 2  # Account for "\n\n"
         
-        # Maximize right up to Instagram's safe text container limit (~950 chars)
         if current_len + addition > 950:
             break
             
@@ -135,26 +135,27 @@ class PlaywrightInstagramBot:
         try:
             box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
             
-            # 1. Force React/Lexical to accept the text by using native browser commands
+            # Direct property injection for max speed
             await box.evaluate(
                 """(element, payloadText) => {
                     element.focus();
-                    // Select any leftover text and overwrite it instantly
-                    document.execCommand('selectAll', false, null);
-                    document.execCommand('insertText', false, payloadText);
+                    let selection = window.getSelection();
+                    let range = document.createRange();
+                    range.selectNodeContents(element);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    // Direct text setting + React trigger
+                    element.textContent = payloadText;
+                    element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: payloadText }));
                 }""",
                 arg=text
             )
             
-            # 2. Use Playwright's native CDP layer for the Enter key. 
-            # React CANNOT ignore this because it comes from the browser engine itself.
+            # Smash Enter via browser engine
             await self.page.keyboard.press("Enter")
-            
-            # 3. Absolute minimum threshold so Instagram's WebSocket actually processes it
-            await asyncio.sleep(0.05) 
             return True
-        except Exception as e:
-            # Silently catch minor DOM detachments during rapid loops
+        except Exception:
             return False
             
 
