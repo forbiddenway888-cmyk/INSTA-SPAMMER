@@ -110,8 +110,10 @@ class AsyncInstagramCommandBot:
                 asyncio.create_task(asyncio.to_thread(self.cl.direct_send, "⚠️ No active spam sequence running.", thread_ids=[self.target_thread_id]))
 
     async def execute_spam_loop(self, base_text: str, delay: float):
-        try:
-            block_num = 1
+        # 3 parallel execution workers overlapping network RTT bottlenecks
+        concurrency_workers = 3
+        
+        async def worker_pipeline():
             while not self.stop_flag.is_set():
                 heart = random.choice(HEART_EMOJIS)
                 payload = generate_formatted_block(base_text, heart, line_count=40)
@@ -119,21 +121,33 @@ class AsyncInstagramCommandBot:
                 if self.stop_flag.is_set():
                     break
 
-                # Non-blocking dispatch with immediate flag check
-                await asyncio.to_thread(
-                    self.cl.direct_send,
-                    payload,
-                    thread_ids=[self.target_thread_id]
-                )
-                
-                block_num += 1
-                if delay > 0:
+                try:
+                    # Non-blocking thread offload for concurrent HTTP execution
+                    await asyncio.to_thread(
+                        self.cl.direct_send,
+                        payload,
+                        thread_ids=[self.target_thread_id]
+                    )
+                except Exception as e:
+                    # Instant backoff recovery if Instagram triggers rate limiting
+                    if "429" in str(e) or "FeedbackRequired" in str(e):
+                        await asyncio.sleep(1.5)
+                    continue
+
+                if delay > 0 and not self.stop_flag.is_set():
                     await asyncio.sleep(delay)
-                    
+
+        # Launch concurrent pipeline tasks
+        tasks = [asyncio.create_task(worker_pipeline()) for _ in range(concurrency_workers)]
+        
+        try:
+            await asyncio.gather(*tasks)
         except asyncio.CancelledError:
-            pass
+            for t in tasks:
+                t.cancel()
+            print("[!] Hyper-spam pipeline successfully terminated.")
         except Exception as e:
-            print(f"[!] Hyper-spam loop error: {e}")
+            print(f"[!] Pipeline error: {e}")
 
 async def main():
     print("[+] Initializing lightweight async Instagram client...")
