@@ -13,18 +13,27 @@ def generate_formatted_block(base_text: str, selected_heart: str, line_count: in
 
 def get_free_proxy():
     try:
-        print("[+] Scraping fresh public free proxies...", flush=True)
+        print("[+] Scraping and testing fresh public proxies...", flush=True)
         url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=3000&country=all&ssl=yes"
-        response = requests.get(url, timeout=3)
+        response = requests.get(url, timeout=4)
         
         if response.status_code == 200:
             proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
-            if proxies:
-                chosen_proxy = random.choice(proxies[:15])
-                print(f"[+] Successfully loaded proxy: {chosen_proxy}", flush=True)
-                return f"http://{chosen_proxy}"
+            random.shuffle(proxies)
+            
+            # Test up to 10 proxies to find one that actually responds
+            for p in proxies[:10]:
+                test_proxy = {"http": f"http://{p}", "https": f"http://{p}"}
+                try:
+                    # Test if proxy can reach Instagram successfully within 2 seconds
+                    r = requests.get("https://i.instagram.com/api/v1/si/fetch_headers/", proxies=test_proxy, timeout=2)
+                    if r.status_code < 500:
+                        print(f"[+] Found working verified proxy: {p}", flush=True)
+                        return f"http://{p}"
+                except:
+                    continue
     except Exception as e:
-        print(f"[!] Proxy scraper timeout/error, bypassing proxy: {e}", flush=True)
+        print(f"[!] Proxy test error: {e}", flush=True)
     return None
 
 class AsyncInstagramCommandBot:
