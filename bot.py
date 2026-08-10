@@ -198,8 +198,16 @@ class PlaywrightInstagramBot:
         # STEP 2: Now navigate directly to the chat thread with established session context
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
         await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
-        await asyncio.sleep(4)
+        await asyncio.sleep(5)
         
+        # 200 IQ: SPA WAKE-UP & ESCAPE NUKE (Kills hidden modals instantly)
+        try:
+            await self.page.mouse.click(500, 500)
+            await self.page.keyboard.press("Escape") 
+            await asyncio.sleep(1)
+        except Exception:
+            pass
+
         # Check if Instagram bounced us back to home (expired cookies)
         if "accounts/login" in self.page.url or self.page.url == "https://www.instagram.com/":
             print("[!] CRITICAL: Session cookies expired! Instagram bounced the bot back to home/login.", flush=True)
@@ -216,11 +224,20 @@ class PlaywrightInstagramBot:
 
         try:
             print("[+] Waiting for chat input box anchor...", flush=True)
-            await self.page.wait_for_selector("div[contenteditable='true'], div[aria-label='Message'], p.xdj266r", timeout=30000)
+            # The absolute most generic React textbox selector
+            await self.page.wait_for_selector("div[role='textbox']", timeout=30000)
             print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
         except Exception as e:
             current_url = self.page.url
             page_title = await self.page.title()
+            
+            # 200 IQ DOM X-RAY: Scrape the screen text so we can actually see the blocker
+            try:
+                page_text = await self.page.evaluate("document.body.innerText")
+                print(f"\n[🔍 200 IQ X-RAY] Screen Text Dump: {page_text[:600]}\n", flush=True)
+            except:
+                pass
+                
             print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
             raise e
             
