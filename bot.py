@@ -135,7 +135,6 @@ class PlaywrightInstagramBot:
                 "--disable-blink-features=AutomationControlled",
                 "--exclude-switches=enable-automation",
                 "--disable-infobars",
-               # Container-safe V8 memory cap to prevent OS-level OOM kills
                 "--js-flags=--max-old-space-size=256 --expose-gc"
             ]
         )
@@ -147,13 +146,24 @@ class PlaywrightInstagramBot:
             "has_touch": False,
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "locale": "en-US",
-            "timezone_id": "America/New_York"
+            "timezone_id": "America/New_York",
+            "extra_http_headers": {
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+                "Sec-Ch-Ua-Mobile": "?0",
+                "Sec-Ch-Ua-Platform": '"Windows"',
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1"
+            }
         }
             
         self.context = await self.browser.new_context(**context_kwargs)
         
-        
-        # Media Blackhole & Visibility Spoof...
+        # Media Blackhole
         async def block_heavy_assets(route):
             if route.request.resource_type in ["image", "media", "font"]:
                 await route.abort()
@@ -162,6 +172,7 @@ class PlaywrightInstagramBot:
                 
         await self.context.route("**/*", block_heavy_assets)
 
+        # Visibility Spoof
         await self.context.add_init_script("""
             Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
             Object.defineProperty(document, 'hidden', { get: () => false });
@@ -172,8 +183,14 @@ class PlaywrightInstagramBot:
         
         self.page = await self.context.new_page()
         
+        # STEP 1: Warm up session on Instagram's main entry to pass edge security checks
+        print("[*] Warming up session on Instagram main entry...", flush=True)
+        await self.page.goto("https://www.instagram.com/", timeout=60000, wait_until="domcontentloaded")
+        await asyncio.sleep(3)
+        
+        # STEP 2: Now navigate directly to the chat thread with established session context
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
-        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
+        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
         await asyncio.sleep(4)
         
         for popup_text in ["Not Now", "Not now", "Cancel"]:
@@ -196,10 +213,18 @@ class PlaywrightInstagramBot:
             
         await self.sync_initial_messages()
         
-        saved_state = MEMORY_BANK["state"]
+        saved_state = None
+        if os.path.exists("memory_bank.txt"):
+            try:
+                with open("memory_bank.txt", "r") as f:
+                    saved_state = f.read().strip()
+            except Exception:
+                pass
+
         if saved_state:
-            print("[*] Phoenix Memory Bank active! Re-engaging payload...", flush=True)
-            await asyncio.sleep(2) 
+            print("[*] Disk Memory Bank active! Waiting 6s for full DOM stabilization...", flush=True)
+            await asyncio.sleep(6) 
+            print(f"[*] Firing saved payload from disk: {saved_state}", flush=True)
             asyncio.create_task(self.process_command(saved_state))
             
         await self.poll_loop()
@@ -231,8 +256,14 @@ class PlaywrightInstagramBot:
         
         self.page = await self.context.new_page()
         
+        # STEP 1: Warm up session on Instagram's main entry to pass edge security checks
+        print("[*] Warming up session on Instagram main entry...", flush=True)
+        await self.page.goto("https://www.instagram.com/", timeout=60000, wait_until="domcontentloaded")
+        await asyncio.sleep(3)
+        
+        # STEP 2: Now navigate directly to the chat thread with established session context
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
-        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
+        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
         await asyncio.sleep(4)
         
         # 1. Automatically dismiss blocking Instagram popups ("Not Now", "Cancel")
