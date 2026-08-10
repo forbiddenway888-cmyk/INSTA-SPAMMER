@@ -551,7 +551,7 @@ class PlaywrightInstagramBot:
                 
                 if not self.stop_flag.is_set():
                     # HUMANIZING JITTER: Varies the sleep cadence organically to evade machine patterns
-                    jittered_delay = random.uniform(safe_delay, safe_delay + 0.12)
+                    jittered_delay = random.uniform(safe_delay, safe_delay + 0.02)
                     await asyncio.sleep(jittered_delay)
                     
         except asyncio.CancelledError:
