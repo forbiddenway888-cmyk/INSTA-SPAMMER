@@ -235,29 +235,26 @@ class PlaywrightInstagramBot:
             except Exception:
                 pass
 
-        # Anchor on the message box
+        # ==========================================
+        # ANCHOR & REACT DEADLOCK KICKER
+        # ==========================================
         try:
             print("[+] Waiting for chat input box anchor...", flush=True)
-            await self.page.wait_for_selector("div[contenteditable='true'], div[role='textbox'], p.xdj266r", timeout=20000)
+            await self.page.wait_for_selector("div[contenteditable='true'], div[role='textbox'], p.xdj266r", timeout=15000)
             print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
-        except Exception as e:
-            print(f"[!] Warning: Anchor timed out, soft-bypassing to force sync...", flush=True)
-            
+        except Exception:
+            print("[!] Anchor timed out! React UI is deadlocked. Forcing a page reload... 🔄", flush=True)
             try:
-                current_url = self.page.url
-                page_title = await self.page.title()
-                print(f"[!] Current URL: {current_url} | Title: {page_title}", flush=True)
+                # Kickstart the engine with a hard reload
+                await self.page.reload(timeout=30000, wait_until="domcontentloaded")
+                await asyncio.sleep(5)
+                
+                print("[+] Waiting for anchor after reload...", flush=True)
+                await self.page.wait_for_selector("div[contenteditable='true'], div[role='textbox'], p.xdj266r", timeout=15000)
+                print("[+] Chat thread successfully mounted after reload! 🎯", flush=True)
             except Exception:
-                pass
-            
-            try:
-                body_html = await self.page.evaluate("document.body.innerHTML")
-                print(f"\n[🔍 200 IQ X-RAY] Body HTML Dump: {body_html[:1500]}\n", flush=True)
-            except:
-                pass
-            
-            # DO NOT RAISE E! Let it drop straight through to sync and polling.
-            
+                print("[!] Still no anchor after reload. Soft-bypassing to loop...", flush=True)
+                
         await self.sync_initial_messages()
         
         # ==========================================
@@ -403,31 +400,33 @@ class PlaywrightInstagramBot:
                             pass
                     last_heartbeat_time = time.time()
 
-                # TARGETED JS SCANNER: Targets message bubbles directly & marks processed DOM nodes
+                # 500 IQ TREEWALKER SCANNER: Ignores all CSS classes and reads pure raw text nodes
                 new_commands = await self.page.evaluate(f'''
                     () => {{
                         const prefix = "{self.prefix}";
                         const found = [];
                         
-                        // Target Instagram Direct message bubble containers
-                        const messageElements = document.querySelectorAll('div[role="row"] div[dir="auto"], div[data-testid="message-container"]');
+                        // Walk through every literal text element on the screen directly
+                        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                        let node;
                         
-                        messageElements.forEach(el => {{
-                            if (el.getAttribute('data-bot-processed') === 'true') return;
-                            
-                            const text = el.innerText ? el.innerText.trim() : '';
+                        while ((node = walker.nextNode())) {{
+                            const text = node.nodeValue.trim();
                             if (text.startsWith(prefix)) {{
-                                // Mark this specific DOM node as processed
-                                el.setAttribute('data-bot-processed', 'true');
-                                found.push(text);
+                                // Tag the invisible parent wrapper so it never triggers twice
+                                const parent = node.parentElement;
+                                if (parent && parent.getAttribute('data-bot-processed') !== 'true') {{
+                                    parent.setAttribute('data-bot-processed', 'true');
+                                    found.push(text);
+                                }}
                             }}
-                        }});
+                        }}
                         
                         return found;
                     }}
                 ''')
 
-                # Process newly detected commands
+                # Process newly found commands
                 for cmd_text in new_commands:
                     print(f"[+] Instant Command Caught: {cmd_text}", flush=True)
                     asyncio.create_task(self.process_command(cmd_text))
