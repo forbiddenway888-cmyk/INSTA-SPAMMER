@@ -121,6 +121,7 @@ class PlaywrightInstagramBot:
         
         self.browser = await p.chromium.launch(
             headless=True,
+            ignore_default_args=["--enable-automation"], # 200 IQ: Strips webdriver flags at the binary level
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -128,14 +129,12 @@ class PlaywrightInstagramBot:
                 "--disable-gpu",
                 "--disable-software-rasterizer",
                 "--no-zygote",
-                "--disable-extensions",
                 "--disable-background-timer-throttling",
                 "--disable-backgrounding-occluded-windows",
                 "--disable-renderer-backgrounding",
                 "--disable-blink-features=AutomationControlled",
-                "--exclude-switches=enable-automation",
-                "--disable-infobars",
-                "--js-flags=--max-old-space-size=256 --expose-gc"
+                # Bumped V8 limit to 384MB so Instagram's React app can actually breathe
+                "--js-flags=--max-old-space-size=384 --expose-gc"
             ]
         )
         
@@ -170,7 +169,7 @@ class PlaywrightInstagramBot:
             else:
                 await route.continue_()
                 
-        await self.context.route("**/*", block_heavy_assets)
+        #await self.context.route("**/*", block_heavy_assets)
 
         # ==========================================
         # 500 IQ VISIBILITY & WEBDRIVER SPOOF
@@ -243,10 +242,10 @@ class PlaywrightInstagramBot:
             current_url = self.page.url
             page_title = await self.page.title()
             
-            # 200 IQ DOM X-RAY: Scrape the screen text so we can actually see the blocker
+            # 200 IQ DOM X-RAY: Scrape raw HTML to see what's actually under the hood
             try:
-                page_text = await self.page.evaluate("document.body.innerText")
-                print(f"\n[🔍 200 IQ X-RAY] Screen Text Dump: {page_text[:600]}\n", flush=True)
+                page_html = await self.page.content()
+                print(f"\n[🔍 200 IQ X-RAY] Raw HTML Dump: {page_html[:1500]}\n", flush=True)
             except:
                 pass
                 
