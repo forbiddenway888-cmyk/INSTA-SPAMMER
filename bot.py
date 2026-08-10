@@ -420,6 +420,8 @@ class PlaywrightInstagramBot:
                         return found;
                     }}
                 ''')
+                if new_commands:
+                    print(f"[DEBUG] Raw found commands: {new_commands}", flush=True)
 
                 for cmd_text in new_commands:
                     lines = [l.strip() for l in cmd_text.splitlines() if l.strip()]
