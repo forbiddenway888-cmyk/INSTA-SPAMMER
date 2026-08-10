@@ -11,14 +11,18 @@ from playwright.async_api import async_playwright
 MEMORY_BANK = {"state": None}
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
+INVISIBLE_CHARS = ["\u200B", "\u200C", "\u200D", "\uFEFF"]
 
 def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 20) -> str:
     lines = []
     current_len = 0
     
     for _ in range(line_count):
-        # Properly formats with the heart emoji inside the angle brackets
-        line = f"{base_text} <{selected_heart}>"
+        # Pick a random invisible character to make the string hash unique
+        hidden_stealth = random.choice(INVISIBLE_CHARS)
+        
+        # Format normally with the hidden character attached safely at the end
+        line = f"{base_text} <{selected_heart}>{hidden_stealth}"
         addition = len(line) + 2  # Account for "\n\n"
         
         if current_len + addition > 950:
