@@ -172,8 +172,20 @@ class PlaywrightInstagramBot:
                 
         await self.context.route("**/*", block_heavy_assets)
 
-        # Visibility Spoof
+        # ==========================================
+        # 500 IQ VISIBILITY & WEBDRIVER SPOOF
+        # ==========================================
         await self.context.add_init_script("""
+            // 1. Erase the headless bot flag
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            
+            // 2. Fake the Chrome runtime object
+            window.chrome = { runtime: {} };
+            
+            // 3. Fake browser plugins so it doesn't look like a blank cloud container
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            
+            // 4. Force visibility
             Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
             Object.defineProperty(document, 'hidden', { get: () => false });
             Object.defineProperty(document, 'hasFocus', { get: () => true });
