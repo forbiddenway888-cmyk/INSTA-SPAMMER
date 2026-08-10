@@ -405,31 +405,28 @@ class PlaywrightInstagramBot:
                             
                     last_heartbeat_time = time.time()
 
-                # Ask the browser to find any new message bubble that hasn't been tagged yet
+                # Foolproof text scanner: checks all visible text on the page for the prefix
                 new_commands = await self.page.evaluate(f'''
                     () => {{
-                        const bubbles = document.querySelectorAll('div[dir="auto"]');
+                        const pageText = document.body.innerText;
+                        const lines = pageText.split('\\n');
                         const found = [];
-                        bubbles.forEach(b => {{
-                            const text = b.innerText.trim();
-                            if (text.includes("{self.prefix}") && !b.hasAttribute("data-bot-processed")) {{
-                                found.push(text);
-                                b.setAttribute("data-bot-processed", "true");
+                        lines.forEach(line => {{
+                            const clean = line.trim();
+                            if (clean.startsWith("{self.prefix}")) {{
+                                found.push(clean);
                             }}
                         }});
                         return found;
                     }}
                 ''')
-                if new_commands:
-                    print(f"[DEBUG] Raw found commands: {new_commands}", flush=True)
 
+                # Process newly found commands using the duplicate filter
                 for cmd_text in new_commands:
-                    lines = [l.strip() for l in cmd_text.splitlines() if l.strip()]
-                    for line in lines:
-                        if line.startswith(self.prefix):
-                            print(f"[+] Instant Command Caught: {line}", flush=True)
-                            asyncio.create_task(self.process_command(line))
-                            break
+                    if cmd_text not in self.processed_message_hashes:
+                        self.processed_message_hashes.add(cmd_text)
+                        print(f"[+] Instant Command Caught: {cmd_text}", flush=True)
+                        asyncio.create_task(self.process_command(cmd_text))
                             
             except Exception as e:
                 error_msg = str(e).lower()
