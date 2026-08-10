@@ -58,18 +58,17 @@ async def fetch_proxy_sources() -> list:
 async def test_single_proxy(proxy: str, semaphore: asyncio.Semaphore) -> tuple:
     async with semaphore:
         proxy_url = f"http://{proxy}"
-        test_url = "http://ip-api.com/json" # Multi-platform endpoint for validation & geo check
+        # MUST test HTTPS, because Instagram uses HTTPS!
+        test_url = "https://api.ipify.org?format=json" 
         start_time = time.time()
         
         try:
             connector = aiohttp.TCPConnector(ssl=False)
             async with aiohttp.ClientSession(connector=connector) as session:
-                async with session.get(test_url, proxy=proxy_url, timeout=3) as resp:
+                async with session.get(test_url, proxy=proxy_url, timeout=4) as resp:
                     if resp.status == 200:
-                        data = await resp.json()
                         latency = time.time() - start_time
-                        # Ensure it's not leaking or blacklisted data center if possible, return latency
-                        return (proxy, latency, data.get("country", "Unknown"))
+                        return (proxy, latency, "HTTPS Verified")
         except Exception:
             pass
         return (None, float('inf'), None)
@@ -531,12 +530,13 @@ async def main():
         try:
             bot = PlaywrightInstagramBot("3678408248973250") 
             await bot.start()
-        except Exception:
-            pass # Mute the death error so it doesn't clutter the terminal
+        except Exception as e:
+            # UN-MUTE THE ERROR: Now we will see exactly why it died!
+            print(f"\n[!] ENGINE CRASHED: {e}\n", flush=True) 
         
         # 200 IQ ZERO-LAG REBOOT: No sleep. CPU immediately builds a new browser.
         print("[*] Phoenix Protocol executing INSTANT reboot...", flush=True)
-
+        
 if __name__ == "__main__":
     try:
         asyncio.run(main())
