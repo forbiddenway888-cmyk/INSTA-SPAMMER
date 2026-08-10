@@ -206,7 +206,6 @@ class PlaywrightInstagramBot:
 
     async def poll_loop(self):
         print("[+] Hyper-speed JS polling loop active! Listening for commands...", flush=True)
-        # Track the last time we sent a heartbeat
         last_heartbeat_time = time.time()
 
         while self.is_running:
@@ -219,7 +218,6 @@ class PlaywrightInstagramBot:
                     
                     if not is_spamming:
                         try:
-                            # Actually click the text box so Meta's React engine registers human presence
                             box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
                             await box.click(timeout=2000)
                         except Exception:
@@ -227,46 +225,47 @@ class PlaywrightInstagramBot:
                         
                     last_heartbeat_time = time.time()
 
-                # Ask the browser to find any new message bubble that hasn't been tagged yet
+                # TREEWALKER COMMAND SCANNER: Scans every raw text node and tags parent DOM elements directly
                 new_commands = await self.page.evaluate(f'''
                     () => {{
-                        const bubbles = document.querySelectorAll('div[dir="auto"]');
+                        const prefix = "{self.prefix}";
                         const found = [];
-                        bubbles.forEach(b => {{
-                            const text = b.innerText.trim();
-                            if (text.includes("{self.prefix}") && !b.hasAttribute("data-bot-processed")) {{
-                                found.push(text);
-                                b.setAttribute("data-bot-processed", "true"); // Tag it instantly
+                        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                        let node;
+                        
+                        while ((node = walker.nextNode())) {{
+                            const text = node.nodeValue ? node.nodeValue.trim() : '';
+                            if (text.startsWith(prefix)) {{
+                                const parent = node.parentElement;
+                                if (parent && parent.getAttribute('data-bot-processed') !== 'true') {{
+                                    parent.setAttribute('data-bot-processed', 'true');
+                                    found.push(text);
+                                }}
                             }}
-                        }});
+                        }}
                         return found;
                     }}
                 ''')
 
-                # Process any newly found commands
+                # Process newly caught commands
                 for cmd_text in new_commands:
-                    lines = [l.strip() for l in cmd_text.splitlines() if l.strip()]
-                    for line in lines:
-                        if line.startswith(self.prefix):
-                            print(f"[+] Instant Command Caught: {line}", flush=True)
-                            asyncio.create_task(self.process_command(line))
-                            break
+                    print(f"[+] Instant Command Caught: {cmd_text}", flush=True)
+                    asyncio.create_task(self.process_command(cmd_text))
                             
             except Exception as e:
                 error_msg = str(e).lower()
                 
-                # 500 IQ MOVE: Detect the exact moment the OS kills the browser
+                # Detect OS browser termination
                 if "closed" in error_msg or "pipe" in error_msg or "target crashed" in error_msg:
                     print("\n[!] FATAL OS RAM CRASH DETECTED! Browser assassinated.", flush=True)
                     print("[*] Initiating Phoenix Protocol: Wiping dead engine... 🦅", flush=True)
                     
-                    # DOUBLE-TAP THE ZOMBIE: Explicitly cancel the active spam loop!
                     self.is_running = False
                     self.stop_flag.set() 
                     if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
                         self.active_spam_task.cancel()
                         
-                    break  # Shatter the dead loop so we can restart cleanly!
+                    break 
                 
                 print(f"[!] Polling error: {e}", flush=True)
                 await asyncio.sleep(2) 
