@@ -399,7 +399,7 @@ class PlaywrightInstagramBot:
     async def poll_loop(self):
         print("[+] Hyper-speed JS polling loop active! Listening for commands...", flush=True)
         last_heartbeat_time = time.time()
-        last_cookie_backup_time = time.time() # Track cookie backup interval
+        last_cookie_backup_time = time.time()
 
         while self.is_running:
             try:
@@ -423,24 +423,6 @@ class PlaywrightInstagramBot:
                             
                     last_heartbeat_time = time.time()
 
-        while self.is_running:
-            try:
-                current_time = time.time()
-                
-                # 500 IQ GHOST HEARTBEAT: Fire every 2.5 minutes (150 seconds)
-                if current_time - last_heartbeat_time > 150:
-                    is_spamming = hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done()
-                    
-                    if not is_spamming:
-                        try:
-                            # Actually click the text box so Meta's React engine registers human presence
-                            box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
-                            await box.click(timeout=2000)
-                        except Exception:
-                            pass
-                        
-                    last_heartbeat_time = time.time()
-
                 # Ask the browser to find any new message bubble that hasn't been tagged yet
                 new_commands = await self.page.evaluate(f'''
                     () => {{
@@ -450,14 +432,13 @@ class PlaywrightInstagramBot:
                             const text = b.innerText.trim();
                             if (text.includes("{self.prefix}") && !b.hasAttribute("data-bot-processed")) {{
                                 found.push(text);
-                                b.setAttribute("data-bot-processed", "true"); // Tag it instantly
+                                b.setAttribute("data-bot-processed", "true");
                             }}
                         }});
                         return found;
                     }}
                 ''')
 
-                # Process any newly found commands
                 for cmd_text in new_commands:
                     lines = [l.strip() for l in cmd_text.splitlines() if l.strip()]
                     for line in lines:
@@ -469,18 +450,16 @@ class PlaywrightInstagramBot:
             except Exception as e:
                 error_msg = str(e).lower()
                 
-                # 500 IQ MOVE: Detect the exact moment the OS kills the browser
                 if "closed" in error_msg or "pipe" in error_msg or "target crashed" in error_msg:
                     print("\n[!] FATAL OS RAM CRASH DETECTED! Browser assassinated.", flush=True)
                     print("[*] Initiating Phoenix Protocol: Wiping dead engine... 🦅", flush=True)
                     
-                    # DOUBLE-TAP THE ZOMBIE: Explicitly cancel the active spam loop!
                     self.is_running = False
                     self.stop_flag.set() 
                     if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
                         self.active_spam_task.cancel()
                         
-                    break  # Shatter the dead loop so we can restart cleanly!
+                    break 
                 
                 print(f"[!] Polling error: {e}", flush=True)
                 await asyncio.sleep(2) 
