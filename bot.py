@@ -2,6 +2,7 @@ import os
 import json
 import time
 import random
+import aiohttp
 import asyncio
 import gc
 from playwright.async_api import async_playwright
@@ -28,6 +29,76 @@ def generate_formatted_block(base_text: str, selected_heart: str, line_count: in
         
     return "\n\n".join(lines)
 
+
+async def fetch_proxy_sources() -> list:
+    # Aggregated top-tier free proxy endpoints
+    sources = [
+        "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text&timeout=5000&protocol=http",
+        "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt",
+        "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt"
+    ]
+    
+    raw_proxies = set()
+    async with aiohttp.ClientSession() as session:
+        for url in sources:
+            try:
+                async with session.get(url, timeout=5) as response:
+                    if response.status == 200:
+                        text = await response.text()
+                        lines = text.strip().splitlines()
+                        for line in lines:
+                            cleaned = line.strip()
+                            if ":" in cleaned and not cleaned.startswith("#"):
+                                raw_proxies.add(cleaned)
+            except Exception:
+                continue
+                
+    return list(raw_proxies)[:150] # Test top 150 candidates for max speed
+
+async def test_single_proxy(proxy: str, semaphore: asyncio.Semaphore) -> tuple:
+    async with semaphore:
+        proxy_url = f"http://{proxy}"
+        test_url = "http://ip-api.com/json" # Multi-platform endpoint for validation & geo check
+        start_time = time.time()
+        
+        try:
+            connector = aiohttp.TCPConnector(ssl=False)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.get(test_url, proxy=proxy_url, timeout=3) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        latency = time.time() - start_time
+                        # Ensure it's not leaking or blacklisted data center if possible, return latency
+                        return (proxy, latency, data.get("country", "Unknown"))
+        except Exception:
+            pass
+        return (None, float('inf'), None)
+
+async def get_best_working_proxy() -> str:
+    print("[*] Scraping fresh high-quality proxies from global public lists...", flush=True)
+    proxies = await fetch_proxy_sources()
+    if not proxies:
+        print("[!] Warning: Proxy scraper failed to fetch IPs. Falling back to direct cloud connection.", flush=True)
+        return None
+        
+    print(f"[+] Scraped {len(proxies)} candidates. Running concurrent speed validation tests...", flush=True)
+    
+    semaphore = asyncio.Semaphore(25) # Test 25 proxies simultaneously
+    tasks = [test_single_proxy(p, semaphore) for p in proxies]
+    results = await asyncio.gather(*tasks)
+    
+    valid_proxies = [r for r in results if r[0] is not None]
+    if not valid_proxies:
+        print("[!] Warning: All scraped proxies failed validation. Falling back.", flush=True)
+        return None
+        
+    # Sort by lowest latency (fastest response time)
+    valid_proxies.sort(key=lambda x: x[1])
+    best_proxy, best_latency, country = valid_proxies[0]
+    
+    print(f"🎯 Best Proxy Selected! IP: {best_proxy} | Country: {country} | Latency: {round(best_latency * 1000, 2)}ms", flush=True)
+    return f"http://{best_proxy}"
+
 class PlaywrightInstagramBot:
     def __init__(self, target_thread_id: str, prefix: str = "^"):
         self.target_thread_id = target_thread_id
@@ -42,6 +113,11 @@ class PlaywrightInstagramBot:
 
     async def start(self):
         print("[+] Starting lightweight Playwright browser engine...", flush=True)
+        
+        # Automatically fetch the fastest working proxy before launching
+        proxy_string = await get_best_working_proxy()
+        proxy_config = {"server": proxy_string} if proxy_string else None
+        
         p = await async_playwright().start()
         
         self.browser = await p.chromium.launch(
@@ -57,15 +133,86 @@ class PlaywrightInstagramBot:
                 "--disable-background-timer-throttling",
                 "--disable-backgrounding-occluded-windows",
                 "--disable-renderer-backgrounding",
-                # 500 IQ: Cap RAM at 450MB AND expose the native C++ Garbage Collector!
+                "--disable-blink-features=AutomationControlled",
+                "--exclude-switches=enable-automation",
+                "--disable-infobars",
                 "--js-flags=--max-old-space-size=450 --expose-gc"
             ]
         )
         
-        self.context = await self.browser.new_context(
-            viewport={"width": 800, "height": 600},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        )
+        # Comprehensive stealth context configurations combined cleanly
+        context_kwargs = {
+            "viewport": {"width": 1920, "height": 1080},
+            "device_scale_factor": 1,
+            "is_mobile": False,
+            "has_touch": False,
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "locale": "en-US",
+            "timezone_id": "America/New_York"
+        }
+        
+        if proxy_config:
+            context_kwargs["proxy"] = proxy_config
+            
+        self.context = await self.browser.new_context(**context_kwargs)
+        
+        # ==========================================
+        # 500 IQ INVINCIBILITY: The Media Blackhole
+        # ==========================================
+        async def block_heavy_assets(route):
+            if route.request.resource_type in ["image", "media", "font"]:
+                await route.abort()
+            else:
+                await route.continue_()
+                
+        await self.context.route("**/*", block_heavy_assets)
+
+        # ==========================================
+        # 500 IQ VISIBILITY SPOOF
+        # ==========================================
+        await self.context.add_init_script("""
+            Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
+            Object.defineProperty(document, 'hidden', { get: () => false });
+            Object.defineProperty(document, 'hasFocus', { get: () => true });
+        """)
+        
+        await self.load_cookies()
+        
+        self.page = await self.context.new_page()
+        
+        print("[+] Navigating directly to Instagram chat thread...", flush=True)
+        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
+        await asyncio.sleep(4)
+        
+        for popup_text in ["Not Now", "Not now", "Cancel"]:
+            try:
+                btn = self.page.get_by_role("button", name=popup_text)
+                if await btn.is_visible(timeout=1500):
+                    await btn.click()
+                    print(f"[+] Dismissed popup: '{popup_text}'", flush=True)
+            except Exception:
+                pass
+
+        try:
+            print("[+] Waiting for chat input box anchor...", flush=True)
+            await self.page.wait_for_selector("div[contenteditable='true'][role='textbox'], p.xdj266r", timeout=30000)
+            print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
+        except Exception as e:
+            current_url = self.page.url
+            page_title = await self.page.title()
+            print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
+            raise e
+            
+        await self.sync_initial_messages()
+        
+        global ACTIVE_SPAM_STATE
+        if ACTIVE_SPAM_STATE:
+            print("[*] Phoenix Memory Bank active! Letting Instagram's React UI attach...", flush=True)
+            await asyncio.sleep(2) 
+            print(f"[*] Firing saved payload: {ACTIVE_SPAM_STATE}", flush=True)
+            asyncio.create_task(self.process_command(ACTIVE_SPAM_STATE))
+            
+        await self.poll_loop()
         
         # ==========================================
         # 500 IQ INVINCIBILITY: The Media Blackhole
