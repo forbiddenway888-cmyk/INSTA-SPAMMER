@@ -225,35 +225,7 @@ class PlaywrightInstagramBot:
             Object.defineProperty(document, 'hasFocus', { get: () => true });
         """)
 
-        # ==========================================
-        # 500 IQ CANVAS & WEBGL HARDWARE SPOOFING
-        # ==========================================
-        await self.context.add_init_script("""
-            const getParameterProxyHandler = {
-                apply: function(target, ctx, args) {
-                    const param = args[0];
-                    // UNMASKED_VENDOR_WEBGL
-                    if (param === 37445) {
-                        return 'Intel Inc.';
-                    }
-                    // UNMASKED_RENDERER_WEBGL
-                    if (param === 37446) {
-                        return 'Intel Iris OpenGL Engine';
-                    }
-                    return Reflect.apply(target, ctx, args);
-                }
-            };
-            
-            try {
-                const getParameterOriginal = WebGLRenderingContext.prototype.getParameter;
-                WebGLRenderingContext.prototype.getParameter = new Proxy(getParameterOriginal, getParameterProxyHandler);
-                
-                if (typeof WebGL2RenderingContext !== 'undefined') {
-                    const getParameterOriginal2 = WebGL2RenderingContext.prototype.getParameter;
-                    WebGL2RenderingContext.prototype.getParameter = new Proxy(getParameterOriginal2, getParameterProxyHandler);
-                }
-            } catch (e) {}
-        """)
+        
         
         await self.load_cookies()
         
