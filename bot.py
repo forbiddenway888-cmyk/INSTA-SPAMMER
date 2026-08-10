@@ -437,8 +437,9 @@ class PlaywrightInstagramBot:
             await asyncio.sleep(0.8)
 
     async def process_command(self, full_text: str):
-        # 500 IQ FIX: Declare the global at the absolute top of the function!
+        # 500 IQ FIX: global declaration MUST be the absolute first line in the function scope!
         global ACTIVE_SPAM_STATE
+        
         parts = full_text.split(" ")
         cmd = parts[0].lower()
         args = parts[1:]
@@ -446,7 +447,6 @@ class PlaywrightInstagramBot:
         if cmd == f"{self.prefix}ping":
             try:
                 start_t = time.time()
-                # Measure exact round-trip dispatch latency to the browser & socket
                 await self.send_message("Pong! 🏓 Live Latency: Calculating... | Zero-Latency Engine Active! ⚡")
                 end_t = time.time()
                 
@@ -456,21 +456,18 @@ class PlaywrightInstagramBot:
                 print(f"[!] Ping error: {e}", flush=True)
 
         elif cmd == f"{self.prefix}spam":
-            # Just directly assign it now, Python already knows it's global!
             ACTIVE_SPAM_STATE = full_text  
             
             if not args:
                 await self.send_message("Usage: ^spam <text> [delay]")
                 return
             
-            # 0.05s is the theoretical Meta packet-drop limit based on your local script
             delay = 0.24
             spam_text = " ".join(args)
             
             if len(args) > 1:
                 try:
                     possible_delay = float(args[-1])
-                    # Absolute hard limit at 0.25s to prevent immediate websocket disconnects
                     delay = max(0.05, possible_delay) 
                     spam_text = " ".join(args[:-1])
                 except ValueError:
