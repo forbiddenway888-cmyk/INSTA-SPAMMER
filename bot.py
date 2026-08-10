@@ -194,6 +194,16 @@ class PlaywrightInstagramBot:
             await asyncio.sleep(2)
         except Exception:
             pass
+
+        # STEP 2: Now navigate directly to the chat thread with established session context
+        print("[+] Navigating directly to Instagram chat thread...", flush=True)
+        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
+        await asyncio.sleep(4)
+        
+        # Check if Instagram bounced us back to home (expired cookies)
+        if "accounts/login" in self.page.url or self.page.url == "https://www.instagram.com/":
+            print("[!] CRITICAL: Session cookies expired! Instagram bounced the bot back to home/login.", flush=True)
+            print("[!] Please update your session.json with fresh cookies.", flush=True)
         
         for popup_text in ["Not Now", "Not now", "Cancel"]:
             try:
