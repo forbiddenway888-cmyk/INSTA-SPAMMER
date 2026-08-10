@@ -196,15 +196,17 @@ class PlaywrightInstagramBot:
         await self.page.goto("https://www.instagram.com/", timeout=60000, wait_until="domcontentloaded")
         await asyncio.sleep(3)
         
-        # STEP 2: Now navigate directly to the chat thread with established session context
+        # STEP 2: Now navigate directly to the chat thread and wait for network stabilization
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
-        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
-        await asyncio.sleep(5)
+        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="networkidle")
         
-        # STEP 2: Now navigate directly to the chat thread with established session context
-        print("[+] Navigating directly to Instagram chat thread...", flush=True)
-        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
-        await asyncio.sleep(5)
+        # Wait for Instagram's main React root container to mount before looking inside
+        try:
+            print("[+] Waiting for React app container to hydrate...", flush=True)
+            await self.page.wait_for_selector("#react-root", timeout=20000)
+            await asyncio.sleep(3) # Let React render child components
+        except Exception:
+            pass
         
         # 200 IQ: ASSASSINATE THE SPLASH SCREEN OVERLAY
         try:
