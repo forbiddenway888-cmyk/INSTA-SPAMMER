@@ -196,23 +196,36 @@ class PlaywrightInstagramBot:
         await self.page.goto("https://www.instagram.com/", timeout=60000, wait_until="domcontentloaded")
         await asyncio.sleep(3)
         
-        # WAKE UP REACT SPA: Click the center of the page to force element rendering
-        try:
-            await self.page.mouse.click(500, 500)
-            await asyncio.sleep(2)
-        except Exception:
-            pass
-
         # STEP 2: Now navigate directly to the chat thread with established session context
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
         await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
         await asyncio.sleep(5)
         
+        # STEP 2: Now navigate directly to the chat thread with established session context
+        print("[+] Navigating directly to Instagram chat thread...", flush=True)
+        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
+        await asyncio.sleep(5)
+        
+        # 200 IQ: ASSASSINATE THE SPLASH SCREEN OVERLAY
+        try:
+            print("[*] Stripping Instagram splash screen overlays...", flush=True)
+            await self.page.evaluate("""
+                const splash = document.getElementById('splash-screen');
+                if (splash) splash.remove();
+                
+                // Rip out any other blocking overlay divs
+                document.querySelectorAll('div[role="presentation"], div[role="dialog"]').forEach(el => {
+                    if (el.style.position === 'fixed') el.remove();
+                });
+            """)
+        except Exception:
+            pass
+
         # 200 IQ: SPA WAKE-UP & ESCAPE NUKE (Kills hidden modals instantly)
         try:
             await self.page.mouse.click(500, 500)
             await self.page.keyboard.press("Escape") 
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
         except Exception:
             pass
 
