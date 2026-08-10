@@ -188,10 +188,12 @@ class PlaywrightInstagramBot:
         await self.page.goto("https://www.instagram.com/", timeout=60000, wait_until="domcontentloaded")
         await asyncio.sleep(3)
         
-        # STEP 2: Now navigate directly to the chat thread with established session context
-        print("[+] Navigating directly to Instagram chat thread...", flush=True)
-        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
-        await asyncio.sleep(4)
+        # WAKE UP REACT SPA: Click the center of the page to force element rendering
+        try:
+            await self.page.mouse.click(500, 500)
+            await asyncio.sleep(2)
+        except Exception:
+            pass
         
         for popup_text in ["Not Now", "Not now", "Cancel"]:
             try:
