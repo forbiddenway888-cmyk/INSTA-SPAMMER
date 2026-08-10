@@ -121,17 +121,20 @@ class PlaywrightInstagramBot:
         
         self.browser = await p.chromium.launch(
             headless=True,
-            ignore_default_args=["--enable-automation"], 
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-software-rasterizer",
                 "--no-zygote",
+                "--disable-extensions",
                 "--disable-background-timer-throttling",
                 "--disable-backgrounding-occluded-windows",
                 "--disable-renderer-backgrounding",
-                "--disable-blink-features=AutomationControlled",
-                "--js-flags=--max-old-space-size=384 --expose-gc"
+                "--disable-blink-features=AutomationControlled", # <--- ADD THIS
+                # 500 IQ: Cap RAM at 450MB AND expose the native C++ Garbage Collector!
+                "--js-flags=--max-old-space-size=450 --expose-gc"
             ]
         )
         
@@ -169,19 +172,10 @@ class PlaywrightInstagramBot:
         #await self.context.route("**/*", block_heavy_assets)
 
         # ==========================================
-        # 500 IQ VISIBILITY & WEBDRIVER SPOOF
+        # 500 IQ VISIBILITY SPOOF
         # ==========================================
         await self.context.add_init_script("""
-            // 1. Erase the headless bot flag
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            
-            // 2. Fake the Chrome runtime object
-            window.chrome = { runtime: {} };
-            
-            // 3. Fake browser plugins so it doesn't look like a blank cloud container
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-            
-            // 4. Force visibility
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined }); // <--- ADD THIS
             Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
             Object.defineProperty(document, 'hidden', { get: () => false });
             Object.defineProperty(document, 'hasFocus', { get: () => true });
