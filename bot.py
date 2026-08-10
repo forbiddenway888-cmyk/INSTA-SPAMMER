@@ -7,8 +7,8 @@ import asyncio
 import gc
 from playwright.async_api import async_playwright
 
-# The Phoenix Memory Bank
-ACTIVE_SPAM_STATE = None
+# The Phoenix Memory Bank (Stored in a mutable dict to bypass global scope errors)
+MEMORY_BANK = {"state": None}
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
 
@@ -270,14 +270,12 @@ class PlaywrightInstagramBot:
         # ==========================================
         # 500 IQ PHOENIX AUTO-RESUME
         # ==========================================
-        global ACTIVE_SPAM_STATE
-        if ACTIVE_SPAM_STATE:
+        saved_state = MEMORY_BANK["state"]
+        if saved_state:
             print("[*] Phoenix Memory Bank active! Letting Instagram's React UI attach...", flush=True)
-            # THIS IS CRITICAL: Wait 2 seconds for Meta's event listeners to hydrate!
             await asyncio.sleep(2) 
-            
-            print(f"[*] Firing saved payload: {ACTIVE_SPAM_STATE}", flush=True)
-            asyncio.create_task(self.process_command(ACTIVE_SPAM_STATE))
+            print(f"[*] Firing saved payload: {saved_state}", flush=True)
+            asyncio.create_task(self.process_command(saved_state))
             
         await self.poll_loop()
 
@@ -437,9 +435,6 @@ class PlaywrightInstagramBot:
             await asyncio.sleep(0.8)
 
     async def process_command(self, full_text: str):
-        # 500 IQ FIX: global declaration MUST be the absolute first line in the function scope!
-        global ACTIVE_SPAM_STATE
-        
         parts = full_text.split(" ")
         cmd = parts[0].lower()
         args = parts[1:]
@@ -456,7 +451,7 @@ class PlaywrightInstagramBot:
                 print(f"[!] Ping error: {e}", flush=True)
 
         elif cmd == f"{self.prefix}spam":
-            ACTIVE_SPAM_STATE = full_text  
+            MEMORY_BANK["state"] = full_text  
             
             if not args:
                 await self.send_message("Usage: ^spam <text> [delay]")
@@ -483,7 +478,7 @@ class PlaywrightInstagramBot:
             self.active_spam_task = asyncio.create_task(self.execute_spam_loop(spam_text, delay))
 
         elif cmd == f"{self.prefix}unspam":
-            ACTIVE_SPAM_STATE = None  
+            MEMORY_BANK["state"] = None  
             
             self.stop_flag.set()
             if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
