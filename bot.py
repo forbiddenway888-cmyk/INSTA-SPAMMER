@@ -8,7 +8,7 @@ import gc
 from playwright.async_api import async_playwright
 
 # The Phoenix Memory Bank (Stored in a mutable dict to bypass global scope errors)
-MEMORY_BANK = {"state": None}
+
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
 INVISIBLE_CHARS = ["\u200B", "\u200C", "\u200D", "\uFEFF"]
@@ -260,13 +260,20 @@ class PlaywrightInstagramBot:
         await self.sync_initial_messages()
         
         # ==========================================
-        # 500 IQ PHOENIX AUTO-RESUME
+        # 500 IQ PHOENIX AUTO-RESUME (DISK BACKED)
         # ==========================================
-        saved_state = MEMORY_BANK["state"]
+        saved_state = None
+        if os.path.exists("memory_bank.txt"):
+            try:
+                with open("memory_bank.txt", "r") as f:
+                    saved_state = f.read().strip()
+            except Exception:
+                pass
+
         if saved_state:
-            print("[*] Phoenix Memory Bank active! Waiting 6s for full DOM stabilization...", flush=True)
-            await asyncio.sleep(6) # Safe buffer for low-RAM containers
-            print(f"[*] Firing saved payload: {saved_state}", flush=True)
+            print("[*] Disk Memory Bank active! Waiting 6s for full DOM stabilization...", flush=True)
+            await asyncio.sleep(6) 
+            print(f"[*] Firing saved payload from disk: {saved_state}", flush=True)
             asyncio.create_task(self.process_command(saved_state))
             
         await self.poll_loop()
@@ -455,7 +462,9 @@ class PlaywrightInstagramBot:
                 print(f"[!] Ping error: {e}", flush=True)
 
         elif cmd == f"{self.prefix}spam":
-            MEMORY_BANK["state"] = full_text  
+            # 💾 SAVE TO DISK: Survives total server reboots
+            with open("memory_bank.txt", "w") as f:
+                f.write(full_text)
             
             if not args:
                 await self.send_message("Usage: ^spam <text> [delay]")
@@ -482,13 +491,15 @@ class PlaywrightInstagramBot:
             self.active_spam_task = asyncio.create_task(self.execute_spam_loop(spam_text, delay))
 
         elif cmd == f"{self.prefix}unspam":
-            MEMORY_BANK["state"] = None  
+            # 🗑️ WIPE FROM DISK: Stops the auto-resume permanently
+            if os.path.exists("memory_bank.txt"):
+                os.remove("memory_bank.txt")
             
             self.stop_flag.set()
             if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
                 self.active_spam_task.cancel()
                 
-            await self.send_message("🛑 Spam engine halted. Memory bank wiped.")
+            await self.send_message("🛑 Spam engine halted. Memory bank wiped from disk.")
             print("[+] Unspam executed. Engine returning to idle.", flush=True)
             
 
