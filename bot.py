@@ -244,6 +244,14 @@ class PlaywrightInstagramBot:
         except Exception as e:
             print(f"[!] Warning: Anchor check soft-bypassed, proceeding to sync...", flush=True)
             
+            # Safely define current_url to prevent NameError
+            try:
+                current_url = self.page.url
+                page_title = await self.page.title()
+                print(f"[!] Current URL: {current_url} | Title: {page_title}", flush=True)
+            except Exception:
+                pass
+            
             # 200 IQ DOM X-RAY: Scrape ONLY the body HTML to see if React is rendering the UI
             try:
                 body_html = await self.page.evaluate("document.body.innerHTML")
