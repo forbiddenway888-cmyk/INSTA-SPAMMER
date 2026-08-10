@@ -135,8 +135,8 @@ class PlaywrightInstagramBot:
                 "--disable-blink-features=AutomationControlled",
                 "--exclude-switches=enable-automation",
                 "--disable-infobars",
-                # Slightly raised V8 memory cap to prevent instant OOM crashes
-                "--js-flags=--max-old-space-size=384 --expose-gc"
+               # Expanded V8 memory cap to 512MB to handle heavy DOM nodes without crashing
+                "--js-flags=--max-old-space-size=512 --expose-gc"
             ]
         )
         
@@ -292,8 +292,8 @@ class PlaywrightInstagramBot:
         # ==========================================
         saved_state = MEMORY_BANK["state"]
         if saved_state:
-            print("[*] Phoenix Memory Bank active! Letting Instagram's React UI attach...", flush=True)
-            await asyncio.sleep(2) 
+            print("[*] Phoenix Memory Bank active! Waiting for DOM stabilization...", flush=True)
+            await asyncio.sleep(4) # Increased stabilization buffer so memory doesn't spike on mount
             print(f"[*] Firing saved payload: {saved_state}", flush=True)
             asyncio.create_task(self.process_command(saved_state))
             
