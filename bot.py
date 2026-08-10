@@ -245,7 +245,6 @@ class PlaywrightInstagramBot:
         except Exception:
             print("[!] Anchor timed out! React UI is deadlocked. Forcing a page reload... 🔄", flush=True)
             try:
-                # Kickstart the engine with a hard reload
                 await self.page.reload(timeout=30000, wait_until="domcontentloaded")
                 await asyncio.sleep(5)
                 
@@ -254,6 +253,20 @@ class PlaywrightInstagramBot:
                 print("[+] Chat thread successfully mounted after reload! 🎯", flush=True)
             except Exception:
                 print("[!] Still no anchor after reload. Soft-bypassing to loop...", flush=True)
+                
+                # 🔍 THE ULTIMATE VISUAL X-RAY
+                try:
+                    current_url = self.page.url
+                    page_title = await self.page.title()
+                    page_text = await self.page.evaluate("document.body.innerText")
+                    print(f"\n==========================================", flush=True)
+                    print(f"[🔍 FATAL DIAGNOSTIC X-RAY]", flush=True)
+                    print(f"URL: {current_url}", flush=True)
+                    print(f"TITLE: {page_title}", flush=True)
+                    print(f"ON-SCREEN TEXT:\n{page_text.strip()[:800]}", flush=True)
+                    print(f"==========================================\n", flush=True)
+                except Exception:
+                    pass
                 
         await self.sync_initial_messages()
         
