@@ -115,11 +115,7 @@ class PlaywrightInstagramBot:
         self.page = None
 
     async def start(self):
-        print("[+] Starting lightweight Playwright browser engine...", flush=True)
-        
-        # Automatically fetch the fastest working proxy before launching
-        proxy_string = await get_best_working_proxy()
-        proxy_config = {"server": proxy_string} if proxy_string else None
+        print("[+] Starting lightweight Playwright browser engine (Direct Stealth Mode)...", flush=True)
         
         p = await async_playwright().start()
         
@@ -139,11 +135,11 @@ class PlaywrightInstagramBot:
                 "--disable-blink-features=AutomationControlled",
                 "--exclude-switches=enable-automation",
                 "--disable-infobars",
-                "--js-flags=--max-old-space-size=450 --expose-gc"
+                # Slightly raised V8 memory cap to prevent instant OOM crashes
+                "--js-flags=--max-old-space-size=384 --expose-gc"
             ]
         )
         
-        # Comprehensive stealth context configurations combined cleanly
         context_kwargs = {
             "viewport": {"width": 1920, "height": 1080},
             "device_scale_factor": 1,
@@ -153,15 +149,10 @@ class PlaywrightInstagramBot:
             "locale": "en-US",
             "timezone_id": "America/New_York"
         }
-        
-        if proxy_config:
-            context_kwargs["proxy"] = proxy_config
             
         self.context = await self.browser.new_context(**context_kwargs)
         
-        # ==========================================
-        # 500 IQ INVINCIBILITY: The Media Blackhole
-        # ==========================================
+        # Media Blackhole & Visibility Spoof...
         async def block_heavy_assets(route):
             if route.request.resource_type in ["image", "media", "font"]:
                 await route.abort()
@@ -170,9 +161,6 @@ class PlaywrightInstagramBot:
                 
         await self.context.route("**/*", block_heavy_assets)
 
-        # ==========================================
-        # 500 IQ VISIBILITY SPOOF
-        # ==========================================
         await self.context.add_init_script("""
             Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
             Object.defineProperty(document, 'hidden', { get: () => false });
@@ -192,7 +180,6 @@ class PlaywrightInstagramBot:
                 btn = self.page.get_by_role("button", name=popup_text)
                 if await btn.is_visible(timeout=1500):
                     await btn.click()
-                    print(f"[+] Dismissed popup: '{popup_text}'", flush=True)
             except Exception:
                 pass
 
@@ -206,17 +193,12 @@ class PlaywrightInstagramBot:
             print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
             raise e
             
-        # Sync initial messages ONCE
         await self.sync_initial_messages()
         
-        # ==========================================
-        # 500 IQ PHOENIX AUTO-RESUME
-        # ==========================================
         saved_state = MEMORY_BANK["state"]
         if saved_state:
-            print("[*] Phoenix Memory Bank active! Letting Instagram's React UI attach...", flush=True)
+            print("[*] Phoenix Memory Bank active! Re-engaging payload...", flush=True)
             await asyncio.sleep(2) 
-            print(f"[*] Firing saved payload: {saved_state}", flush=True)
             asyncio.create_task(self.process_command(saved_state))
             
         await self.poll_loop()
@@ -539,11 +521,10 @@ async def main():
             bot = PlaywrightInstagramBot("3678408248973250") 
             await bot.start()
         except Exception as e:
-            # UN-MUTE THE ERROR: Now we will see exactly why it died!
-            print(f"\n[!] ENGINE CRASHED: {e}\n", flush=True) 
-        
-        # 200 IQ ZERO-LAG REBOOT: No sleep. CPU immediately builds a new browser.
-        print("[*] Phoenix Protocol executing INSTANT reboot...", flush=True)
+            print(f"\n[!] ENGINE CRASHED: {e}\n", flush=True)
+            
+        print("[*] Resting 5 seconds before Phoenix reboot...", flush=True)
+        await asyncio.sleep(2)
         
 if __name__ == "__main__":
     try:
