@@ -196,46 +196,37 @@ class PlaywrightInstagramBot:
         await self.page.goto("https://www.instagram.com/", timeout=60000, wait_until="domcontentloaded")
         await asyncio.sleep(3)
         
-        # STEP 2: Now navigate directly to the chat thread and wait for network stabilization
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
-        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="networkidle")
+        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
+        await asyncio.sleep(5)
         
-        # Wait for Instagram's main React root container to mount before looking inside
+        # ==========================================
+        # AGGRESSIVE SPLASH-SCREEN & OVERLAY OBLITERATOR
+        # ==========================================
         try:
-            print("[+] Waiting for React app container to hydrate...", flush=True)
-            await self.page.wait_for_selector("#react-root", timeout=20000)
-            await asyncio.sleep(3) # Let React render child components
-        except Exception:
-            pass
-        
-        # 200 IQ: ASSASSINATE THE SPLASH SCREEN OVERLAY
-        try:
-            print("[*] Stripping Instagram splash screen overlays...", flush=True)
+            print("[*] Stripping splash-screen and blocking overlays...", flush=True)
             await self.page.evaluate("""
-                const splash = document.getElementById('splash-screen');
-                if (splash) splash.remove();
-                
-                // Rip out any other blocking overlay divs
-                document.querySelectorAll('div[role="presentation"], div[role="dialog"]').forEach(el => {
-                    if (el.style.position === 'fixed') el.remove();
-                });
+                () => {
+                    const splash = document.getElementById('splash-screen');
+                    if (splash) splash.remove();
+                    document.querySelectorAll('div[style*="position: fixed"], div[role="presentation"]').forEach(el => {
+                        if (el.innerHTML.includes('splash') || (el.style.zIndex && parseInt(el.style.zIndex) > 50)) {
+                            el.remove();
+                        }
+                    });
+                }
             """)
         except Exception:
             pass
 
-        # 200 IQ: SPA WAKE-UP & ESCAPE NUKE (Kills hidden modals instantly)
+        # Force React hydration wake-up click
         try:
-            await self.page.mouse.click(500, 500)
-            await self.page.keyboard.press("Escape") 
+            await self.page.mouse.click(400, 300)
             await asyncio.sleep(2)
         except Exception:
             pass
-
-        # Check if Instagram bounced us back to home (expired cookies)
-        if "accounts/login" in self.page.url or self.page.url == "https://www.instagram.com/":
-            print("[!] CRITICAL: Session cookies expired! Instagram bounced the bot back to home/login.", flush=True)
-            print("[!] Please update your session.json with fresh cookies.", flush=True)
         
+        # Dismiss blocking Instagram popups
         for popup_text in ["Not Now", "Not now", "Cancel"]:
             try:
                 btn = self.page.get_by_role("button", name=popup_text)
@@ -245,14 +236,13 @@ class PlaywrightInstagramBot:
             except Exception:
                 pass
 
+        # Anchor on the message box
         try:
             print("[+] Waiting for chat input box anchor...", flush=True)
-            # The absolute most generic React textbox selector
-            await self.page.wait_for_selector("div[role='textbox']", timeout=30000)
+            await self.page.wait_for_selector("div[contenteditable='true'], div[role='textbox'], p.xdj266r", timeout=20000)
             print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
         except Exception as e:
-            current_url = self.page.url
-            page_title = await self.page.title()
+            print(f"[!] Warning: Anchor check soft-bypassed, proceeding to sync...", flush=True)
             
             # 200 IQ DOM X-RAY: Scrape ONLY the body HTML to see if React is rendering the UI
             try:
