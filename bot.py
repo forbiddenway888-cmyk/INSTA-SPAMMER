@@ -202,14 +202,18 @@ class PlaywrightInstagramBot:
             print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
             raise e
             
+        # Sync initial messages ONCE
         await self.sync_initial_messages()
         
-        global ACTIVE_SPAM_STATE
-        if ACTIVE_SPAM_STATE:
+        # ==========================================
+        # 500 IQ PHOENIX AUTO-RESUME
+        # ==========================================
+        saved_state = MEMORY_BANK["state"]
+        if saved_state:
             print("[*] Phoenix Memory Bank active! Letting Instagram's React UI attach...", flush=True)
             await asyncio.sleep(2) 
-            print(f"[*] Firing saved payload: {ACTIVE_SPAM_STATE}", flush=True)
-            asyncio.create_task(self.process_command(ACTIVE_SPAM_STATE))
+            print(f"[*] Firing saved payload: {saved_state}", flush=True)
+            asyncio.create_task(self.process_command(saved_state))
             
         await self.poll_loop()
         
