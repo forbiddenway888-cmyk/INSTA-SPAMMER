@@ -198,12 +198,13 @@ class PlaywrightInstagramBot:
                 btn = self.page.get_by_role("button", name=popup_text)
                 if await btn.is_visible(timeout=1500):
                     await btn.click()
+                    print(f"[+] Dismissed popup: '{popup_text}'", flush=True)
             except Exception:
                 pass
 
         try:
             print("[+] Waiting for chat input box anchor...", flush=True)
-            await self.page.wait_for_selector("div[contenteditable='true'][role='textbox'], p.xdj266r", timeout=30000)
+            await self.page.wait_for_selector("div[contenteditable='true'], div[aria-label='Message'], p.xdj266r", timeout=30000)
             print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
         except Exception as e:
             current_url = self.page.url
@@ -211,83 +212,6 @@ class PlaywrightInstagramBot:
             print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
             raise e
             
-        await self.sync_initial_messages()
-        
-        saved_state = None
-        if os.path.exists("memory_bank.txt"):
-            try:
-                with open("memory_bank.txt", "r") as f:
-                    saved_state = f.read().strip()
-            except Exception:
-                pass
-
-        if saved_state:
-            print("[*] Disk Memory Bank active! Waiting 6s for full DOM stabilization...", flush=True)
-            await asyncio.sleep(6) 
-            print(f"[*] Firing saved payload from disk: {saved_state}", flush=True)
-            asyncio.create_task(self.process_command(saved_state))
-            
-        await self.poll_loop()
-        
-        # ==========================================
-        # 500 IQ INVINCIBILITY: The Media Blackhole
-        # ==========================================
-        async def block_heavy_assets(route):
-            if route.request.resource_type in ["image", "media", "font"]:
-                await route.abort()
-            else:
-                await route.continue_()
-                
-        # Apply the blackhole to the entire browser context
-        await self.context.route("**/*", block_heavy_assets)
-
-       # ==========================================
-        # 500 IQ VISIBILITY SPOOF
-        # ==========================================
-        await self.context.add_init_script("""
-            Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
-            Object.defineProperty(document, 'hidden', { get: () => false });
-            Object.defineProperty(document, 'hasFocus', { get: () => true });
-        """)
-
-        
-        
-        await self.load_cookies()
-        
-        self.page = await self.context.new_page()
-        
-        # STEP 1: Warm up session on Instagram's main entry to pass edge security checks
-        print("[*] Warming up session on Instagram main entry...", flush=True)
-        await self.page.goto("https://www.instagram.com/", timeout=60000, wait_until="domcontentloaded")
-        await asyncio.sleep(3)
-        
-        # STEP 2: Now navigate directly to the chat thread with established session context
-        print("[+] Navigating directly to Instagram chat thread...", flush=True)
-        await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000, wait_until="domcontentloaded")
-        await asyncio.sleep(4)
-        
-        # 1. Automatically dismiss blocking Instagram popups ("Not Now", "Cancel")
-        for popup_text in ["Not Now", "Not now", "Cancel"]:
-            try:
-                btn = self.page.get_by_role("button", name=popup_text)
-                if await btn.is_visible(timeout=1500):
-                    await btn.click()
-                    print(f"[+] Dismissed popup: '{popup_text}'", flush=True)
-            except Exception:
-                pass
-
-        # 2. Anchor on the message box with cloud-block diagnostics
-        try:
-            print("[+] Waiting for chat input box anchor...", flush=True)
-            await self.page.wait_for_selector("div[contenteditable='true'][role='textbox'], p.xdj266r", timeout=30000)
-            print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
-        except Exception as e:
-            current_url = self.page.url
-            page_title = await self.page.title()
-            print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
-            raise e # Force a clean reboot via the Immortal loop
-            
-        # Sync initial messages ONCE
         await self.sync_initial_messages()
         
         # ==========================================
@@ -307,11 +231,13 @@ class PlaywrightInstagramBot:
             print(f"[*] Firing saved payload from disk: {saved_state}", flush=True)
             asyncio.create_task(self.process_command(saved_state))
             
+        # SINGLE, UNIFIED POLLING LOOP (THE END OF START)
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
         try:
-            box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
+            # Broadened selector to match start()
+            box = self.page.locator("div[contenteditable='true'], div[aria-label='Message'], p.xdj266r").first
             
             # Ultra-lightweight injection: avoids heavy range selection DOM thrashing
             await box.evaluate(
