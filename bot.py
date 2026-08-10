@@ -11,16 +11,24 @@ ACTIVE_SPAM_STATE = None
 
 HEART_EMOJIS = ["💚", "💙", "❤️", "🖤", "🤎", "💛", "💜", "🧡", "🤍", "🩶", "🩷"]
 
+# 500 IQ: Zero-width non-printing characters for Meta hash evasion
+INVISIBLE_CHARS = ["\u200B", "\u200C", "\u200D", "\uFEFF"]
+
 def generate_formatted_block(base_text: str, selected_heart: str, line_count: int = 40) -> str:
     lines = []
     current_len = 0
     
     for _ in range(line_count):
-        line = f"{base_text} <{selected_heart}>"
+        # Generate a unique stealth signature for EVERY single line
+        stealth_hash = "".join(random.choices(INVISIBLE_CHARS, k=3))
+        
+        # Attach the invisible hash safely at the end of the text
+        line = f"{base_text} <{selected_heart}>{stealth_hash}"
+        
         # Calculate length of the line plus the "\n\n" separator
         addition = len(line) + 2 
         
-        # If adding this next line breaches the 950 limit, stop adding lines
+        # If adding this next line breaches the 950 character limit, stop adding lines
         if current_len + addition > 950:
             break
             
@@ -133,10 +141,32 @@ class PlaywrightInstagramBot:
         await self.poll_loop()
 
     async def blast_payload(self, text: str):
-        # GOD-TIER ATOMIC PROMISE: Injection + Enter + 5ms Chamber Check in ONE single V8 execution
-        js_code = "async (t) => { let b = document.querySelector(\"div[contenteditable='true'][role='textbox'], p.xdj266r\"); if(!b) return; b.focus(); if(b.textContent.trim() !== '') b.textContent = ''; b.textContent = t; b.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: t})); b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keypress', {key: 'Enter', keyCode: 13, bubbles: true})); b.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true})); return new Promise(r => { let c = setInterval(() => { if(!document.body.contains(b) || b.textContent.trim() === '') { clearInterval(c); r(); } }, 5); setTimeout(() => { clearInterval(c); r(); }, 350); }); }"
+        try:
+            # Broadened selector
+            box = self.page.locator("div[contenteditable='true'], div[aria-label='Message'], p.xdj266r").first
+            
+            # ONE-SHOT GATLING GUN: No Python-to-Browser websocket delays. Pure V8 injection.
+            await box.evaluate(
+                """(element, payloadText) => {
+                    element.focus();
+                    element.textContent = payloadText;
+                    
+                    // 1. Force React to see the text
+                    element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: payloadText }));
+                    
+                    // 2. Smash Enter instantly inside the browser (No Playwright delay)
+                    element.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));
+                    element.dispatchEvent(new KeyboardEvent('keypress', {key: 'Enter', keyCode: 13, bubbles: true}));
+                    element.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true}));
+                }""",
+                arg=text
+            )
+            
+            # Removed await self.page.keyboard.press("Enter") completely!
+            return True
+        except Exception:
+            return False
         
-        await self.page.evaluate(js_code, text)
             
 
     async def load_cookies(self):
@@ -301,7 +331,7 @@ class PlaywrightInstagramBot:
                 return
             
             # 0.05s is the theoretical Meta packet-drop limit based on your local script
-            delay = 0.05
+            delay = 0.24
             spam_text = " ".join(args)
             
             if len(args) > 1:
@@ -366,7 +396,9 @@ class PlaywrightInstagramBot:
                         pass
                 
                 if not self.stop_flag.is_set():
-                    await asyncio.sleep(safe_delay)
+                    # HUMANIZING JITTER: Adds a tiny random variance (0.01s to 0.04s) to evade machine detection
+                    jittered_delay = random.uniform(safe_delay, safe_delay + 0.02)
+                    await asyncio.sleep(jittered_delay)
                     
         except asyncio.CancelledError:
             print("[+] Spam loop gracefully cancelled.", flush=True)
