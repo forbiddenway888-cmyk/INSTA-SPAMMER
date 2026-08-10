@@ -152,6 +152,7 @@ class PlaywrightInstagramBot:
             
         self.context = await self.browser.new_context(**context_kwargs)
         
+        
         # Media Blackhole & Visibility Spoof...
         async def block_heavy_assets(route):
             if route.request.resource_type in ["image", "media", "font"]:
@@ -215,13 +216,43 @@ class PlaywrightInstagramBot:
         # Apply the blackhole to the entire browser context
         await self.context.route("**/*", block_heavy_assets)
 
-        # ==========================================
+       # ==========================================
         # 500 IQ VISIBILITY SPOOF
         # ==========================================
         await self.context.add_init_script("""
             Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
             Object.defineProperty(document, 'hidden', { get: () => false });
             Object.defineProperty(document, 'hasFocus', { get: () => true });
+        """)
+
+        # ==========================================
+        # 500 IQ CANVAS & WEBGL HARDWARE SPOOFING
+        # ==========================================
+        await self.context.add_init_script("""
+            const getParameterProxyHandler = {
+                apply: function(target, ctx, args) {
+                    const param = args[0];
+                    // UNMASKED_VENDOR_WEBGL
+                    if (param === 37445) {
+                        return 'Intel Inc.';
+                    }
+                    // UNMASKED_RENDERER_WEBGL
+                    if (param === 37446) {
+                        return 'Intel Iris OpenGL Engine';
+                    }
+                    return Reflect.apply(target, ctx, args);
+                }
+            };
+            
+            try {
+                const getParameterOriginal = WebGLRenderingContext.prototype.getParameter;
+                WebGLRenderingContext.prototype.getParameter = new Proxy(getParameterOriginal, getParameterProxyHandler);
+                
+                if (typeof WebGL2RenderingContext !== 'undefined') {
+                    const getParameterOriginal2 = WebGL2RenderingContext.prototype.getParameter;
+                    WebGL2RenderingContext.prototype.getParameter = new Proxy(getParameterOriginal2, getParameterProxyHandler);
+                }
+            } catch (e) {}
         """)
         
         await self.load_cookies()
@@ -313,6 +344,17 @@ class PlaywrightInstagramBot:
         except Exception as e:
             print(f"[!] Cookie load error: {e}", flush=True)
 
+    async def save_cookies_backup(self):
+        try:
+            cookies = await self.context.cookies()
+            cookies_dict = {c['name']: c['value'] for c in cookies}
+            data = {"cookies": cookies_dict}
+            
+            with open("session.json", "w") as f:
+                json.dump(data, f, indent=2)
+            print("[+] Session cookies successfully auto-backed up to disk! 💾", flush=True)
+        except Exception as e:
+            print(f"[!] Cookie backup error: {e}", flush=True)
     async def sync_initial_messages(self):
         try:
             print("[+] Syncing existing chat messages...", flush=True)
@@ -356,8 +398,30 @@ class PlaywrightInstagramBot:
 
     async def poll_loop(self):
         print("[+] Hyper-speed JS polling loop active! Listening for commands...", flush=True)
-        # Track the last time we sent a heartbeat
         last_heartbeat_time = time.time()
+        last_cookie_backup_time = time.time() # Track cookie backup interval
+
+        while self.is_running:
+            try:
+                current_time = time.time()
+                
+                # 500 IQ COOKIE AUTO-BACKUP: Backup session tokens every 30 minutes (1800 seconds)
+                if current_time - last_cookie_backup_time > 1800:
+                    await self.save_cookies_backup()
+                    last_cookie_backup_time = time.time()
+                
+                # 500 IQ GHOST HEARTBEAT: Fire every 2.5 minutes (150 seconds)
+                if current_time - last_heartbeat_time > 150:
+                    is_spamming = hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done()
+                    
+                    if not is_spamming:
+                        try:
+                            box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
+                            await box.click(timeout=2000)
+                        except Exception:
+                            pass
+                            
+                    last_heartbeat_time = time.time()
 
         while self.is_running:
             try:
@@ -479,8 +543,8 @@ class PlaywrightInstagramBot:
 
     async def execute_spam_loop(self, base_text: str, delay: float):
         try:
-            print("[+] Fast Python-Driven Spam Loop Active... ⚡", flush=True)
-            safe_delay = max(0.01, delay)
+            print("[+] Humanized Jittered Spam Loop Active... ⚡", flush=True)
+            safe_delay = max(0.05, delay)
             msg_count = 0
             
             while not self.stop_flag.is_set():
@@ -507,7 +571,9 @@ class PlaywrightInstagramBot:
                         pass
                 
                 if not self.stop_flag.is_set():
-                    await asyncio.sleep(safe_delay)
+                    # HUMANIZING JITTER: Varies the sleep cadence organically to evade machine patterns
+                    jittered_delay = random.uniform(safe_delay, safe_delay + 0.12)
+                    await asyncio.sleep(jittered_delay)
                     
         except asyncio.CancelledError:
             print("[+] Spam loop gracefully cancelled.", flush=True)
