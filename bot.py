@@ -198,13 +198,12 @@ class PlaywrightInstagramBot:
         
         print("[+] Navigating directly to Instagram chat thread...", flush=True)
         await self.page.goto(f"https://www.instagram.com/direct/t/{self.target_thread_id}/", timeout=60000)
-        await asyncio.sleep(5)
+        await asyncio.sleep(4)
         
         # ==========================================
-        # AGGRESSIVE SPLASH-SCREEN & OVERLAY OBLITERATOR
+        # AGGRESSIVE SPLASH-SCREEN OBLITERATOR
         # ==========================================
         try:
-            print("[*] Stripping splash-screen and blocking overlays...", flush=True)
             await self.page.evaluate("""
                 () => {
                     const splash = document.getElementById('splash-screen');
@@ -226,7 +225,7 @@ class PlaywrightInstagramBot:
         except Exception:
             pass
         
-        # Dismiss blocking Instagram popups
+        # 1. Automatically dismiss blocking Instagram popups ("Not Now", "Cancel")
         for popup_text in ["Not Now", "Not now", "Cancel"]:
             try:
                 btn = self.page.get_by_role("button", name=popup_text)
