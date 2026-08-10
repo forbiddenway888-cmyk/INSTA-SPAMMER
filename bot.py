@@ -106,13 +106,16 @@ class PlaywrightInstagramBot:
             except Exception:
                 pass
 
-        # 2. Anchor on the message box (proves the thread is loaded)
+        # 2. Anchor on the message box with cloud-block diagnostics
         try:
             print("[+] Waiting for chat input box anchor...", flush=True)
             await self.page.wait_for_selector("div[contenteditable='true'][role='textbox'], p.xdj266r", timeout=30000)
             print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
         except Exception as e:
-            print(f"[!] Warning: Chat input anchor check timed out: {e}", flush=True)
+            current_url = self.page.url
+            page_title = await self.page.title()
+            print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
+            raise e # Force a clean reboot via the Immortal loop
             
         # Sync initial messages ONCE
         await self.sync_initial_messages()
