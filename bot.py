@@ -387,50 +387,53 @@ class PlaywrightInstagramBot:
             try:
                 current_time = time.time()
                 
-                # 500 IQ COOKIE AUTO-BACKUP: Backup session tokens every 30 minutes (1800 seconds)
+                # Cookie backup (30 mins)
                 if current_time - last_cookie_backup_time > 1800:
                     await self.save_cookies_backup()
                     last_cookie_backup_time = time.time()
                 
-                # 500 IQ GHOST HEARTBEAT: Fire every 2.5 minutes (150 seconds)
+                # Heartbeat (2.5 mins)
                 if current_time - last_heartbeat_time > 150:
                     is_spamming = hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done()
-                    
                     if not is_spamming:
                         try:
                             box = self.page.locator("div[contenteditable='true'][role='textbox'], p.xdj266r").first
                             await box.click(timeout=2000)
                         except Exception:
                             pass
-                            
                     last_heartbeat_time = time.time()
 
-                # Foolproof text scanner: checks all visible text on the page for the prefix
+                # TARGETED JS SCANNER: Targets message bubbles directly & marks processed DOM nodes
                 new_commands = await self.page.evaluate(f'''
                     () => {{
-                        const pageText = document.body.innerText;
-                        const lines = pageText.split('\\n');
+                        const prefix = "{self.prefix}";
                         const found = [];
-                        lines.forEach(line => {{
-                            const clean = line.trim();
-                            if (clean.startsWith("{self.prefix}")) {{
-                                found.push(clean);
+                        
+                        // Target Instagram Direct message bubble containers
+                        const messageElements = document.querySelectorAll('div[role="row"] div[dir="auto"], div[data-testid="message-container"]');
+                        
+                        messageElements.forEach(el => {{
+                            if (el.getAttribute('data-bot-processed') === 'true') return;
+                            
+                            const text = el.innerText ? el.innerText.trim() : '';
+                            if (text.startsWith(prefix)) {{
+                                // Mark this specific DOM node as processed
+                                el.setAttribute('data-bot-processed', 'true');
+                                found.push(text);
                             }}
                         }});
+                        
                         return found;
                     }}
                 ''')
 
-                # Process newly found commands using the duplicate filter
+                # Process newly detected commands
                 for cmd_text in new_commands:
-                    if cmd_text not in self.processed_message_hashes:
-                        self.processed_message_hashes.add(cmd_text)
-                        print(f"[+] Instant Command Caught: {cmd_text}", flush=True)
-                        asyncio.create_task(self.process_command(cmd_text))
+                    print(f"[+] Instant Command Caught: {cmd_text}", flush=True)
+                    asyncio.create_task(self.process_command(cmd_text))
                             
             except Exception as e:
                 error_msg = str(e).lower()
-                
                 if "closed" in error_msg or "pipe" in error_msg or "target crashed" in error_msg:
                     print("\n[!] FATAL OS RAM CRASH DETECTED! Browser assassinated.", flush=True)
                     print("[*] Initiating Phoenix Protocol: Wiping dead engine... 🦅", flush=True)
@@ -439,14 +442,13 @@ class PlaywrightInstagramBot:
                     self.stop_flag.set() 
                     if hasattr(self, 'active_spam_task') and self.active_spam_task and not self.active_spam_task.done():
                         self.active_spam_task.cancel()
-                        
                     break 
                 
                 print(f"[!] Polling error: {e}", flush=True)
                 await asyncio.sleep(2) 
             
             await asyncio.sleep(0.8)
-
+            
     async def process_command(self, full_text: str):
         parts = full_text.split(" ")
         cmd = parts[0].lower()
