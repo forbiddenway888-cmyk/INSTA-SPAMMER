@@ -121,19 +121,16 @@ class PlaywrightInstagramBot:
         
         self.browser = await p.chromium.launch(
             headless=True,
-            ignore_default_args=["--enable-automation"], # 200 IQ: Strips webdriver flags at the binary level
+            ignore_default_args=["--enable-automation"], 
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--disable-software-rasterizer",
                 "--no-zygote",
                 "--disable-background-timer-throttling",
                 "--disable-backgrounding-occluded-windows",
                 "--disable-renderer-backgrounding",
                 "--disable-blink-features=AutomationControlled",
-                # Bumped V8 limit to 384MB so Instagram's React app can actually breathe
                 "--js-flags=--max-old-space-size=384 --expose-gc"
             ]
         )
@@ -242,10 +239,10 @@ class PlaywrightInstagramBot:
             current_url = self.page.url
             page_title = await self.page.title()
             
-            # 200 IQ DOM X-RAY: Scrape raw HTML to see what's actually under the hood
+            # 200 IQ DOM X-RAY: Scrape ONLY the body HTML to see if React is rendering the UI
             try:
-                page_html = await self.page.content()
-                print(f"\n[🔍 200 IQ X-RAY] Raw HTML Dump: {page_html[:1500]}\n", flush=True)
+                body_html = await self.page.evaluate("document.body.innerHTML")
+                print(f"\n[🔍 200 IQ X-RAY] Body HTML Dump: {body_html[:1500]}\n", flush=True)
             except:
                 pass
                 
