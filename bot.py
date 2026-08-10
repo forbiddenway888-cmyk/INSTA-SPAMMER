@@ -242,9 +242,8 @@ class PlaywrightInstagramBot:
             await self.page.wait_for_selector("div[contenteditable='true'], div[role='textbox'], p.xdj266r", timeout=20000)
             print("[+] Chat thread fully mounted and ready! 🎯", flush=True)
         except Exception as e:
-            print(f"[!] Warning: Anchor check soft-bypassed, proceeding to sync...", flush=True)
+            print(f"[!] Warning: Anchor timed out, soft-bypassing to force sync...", flush=True)
             
-            # Safely define current_url to prevent NameError
             try:
                 current_url = self.page.url
                 page_title = await self.page.title()
@@ -252,15 +251,13 @@ class PlaywrightInstagramBot:
             except Exception:
                 pass
             
-            # 200 IQ DOM X-RAY: Scrape ONLY the body HTML to see if React is rendering the UI
             try:
                 body_html = await self.page.evaluate("document.body.innerHTML")
                 print(f"\n[🔍 200 IQ X-RAY] Body HTML Dump: {body_html[:1500]}\n", flush=True)
             except:
                 pass
-                
-            print(f"[!] CLOUD BLOCK DETECTED! Current URL: {current_url} | Title: {page_title}", flush=True)
-            raise e
+            
+            # DO NOT RAISE E! Let it drop straight through to sync and polling.
             
         await self.sync_initial_messages()
         
