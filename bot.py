@@ -409,28 +409,32 @@ class PlaywrightInstagramBot:
                         
                     last_heartbeat_time = time.time()
 
-                # TREEWALKER COMMAND SCANNER: Scans every raw text node and tags parent DOM elements directly
+                # TARGETED ROW SCANNER: Finds chat bubbles and tags the main row container
                 new_commands = await self.page.evaluate(f'''
                     () => {{
                         const prefix = "{self.prefix}";
                         const found = [];
-                        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-                        let node;
+                        // Target both standard chat bubbles and row wrappers
+                        const rows = document.querySelectorAll('div[role="row"], div[dir="auto"]');
                         
-                        while ((node = walker.nextNode())) {{
-                            const text = node.nodeValue ? node.nodeValue.trim() : '';
-                            if (text.startsWith(prefix)) {{
-                                const parent = node.parentElement;
-                                if (parent && parent.getAttribute('data-bot-processed') !== 'true') {{
-                                    parent.setAttribute('data-bot-processed', 'true');
-                                    found.push(text);
+                        rows.forEach(r => {{
+                            if (r.getAttribute('data-bot-processed') === 'true') return;
+                            
+                            const text = r.innerText ? r.innerText.trim() : '';
+                            // Split multi-line messages to catch commands cleanly
+                            const lines = text.split('\\n');
+                            for (let line of lines) {{
+                                const cleanLine = line.trim();
+                                if (cleanLine.startsWith(prefix)) {{
+                                    r.setAttribute('data-bot-processed', 'true');
+                                    found.push(cleanLine);
+                                    break;
                                 }}
                             }}
-                        }}
+                        }});
                         return found;
                     }}
                 ''')
-
                 # Process newly caught commands
                 for cmd_text in new_commands:
                     print(f"[+] Instant Command Caught: {cmd_text}", flush=True)
