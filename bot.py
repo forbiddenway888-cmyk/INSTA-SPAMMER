@@ -409,7 +409,7 @@ async def main():
     print("🚀 INITIALIZING IMMORTAL BOT ENGINE...", flush=True)
     while True:
         try:
-            bot = PlaywrightInstagramBot("1545426950656325") 
+            bot = PlaywrightInstagramBot("1038149162311376") 
             await bot.start()
         except Exception:
             pass # Mute the death error so it doesn't clutter the terminal
